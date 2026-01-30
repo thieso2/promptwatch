@@ -287,24 +287,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			stats, ok := m.sessionStats.(*monitor.SessionStats)
 			if ok {
 				filteredMessages := m.getFilteredMessages(stats)
+				needsRender := false
 
 				switch keyMsg.String() {
 				case "up":
 					// Move cursor up
 					if m.selectedMessageIdx > 0 {
 						m.selectedMessageIdx--
-						// Scroll viewport to keep selected message visible
-						m.updateMessageTable() // Re-render to update cursor
-						// Scroll up if needed
+						needsRender = true
 						m.messageViewport.LineUp(1)
 					}
 				case "down":
 					// Move cursor down
 					if m.selectedMessageIdx < len(m.messages)-1 {
 						m.selectedMessageIdx++
-						// Scroll viewport to keep selected message visible
-						m.updateMessageTable() // Re-render to update cursor
-						// Scroll down if needed
+						needsRender = true
 						m.messageViewport.LineDown(1)
 					}
 				case "pgup":
@@ -317,12 +314,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// Jump to top
 					m.selectedMessageIdx = 0
 					m.messageViewport.GotoTop()
-					m.updateMessageTable()
+					needsRender = true
 				case "end":
 					// Jump to bottom
 					m.selectedMessageIdx = len(m.messages) - 1
 					m.messageViewport.GotoBottom()
-					m.updateMessageTable()
+					needsRender = true
 				case "enter":
 					// Open message detail view for selected message
 					if m.selectedMessageIdx >= 0 && m.selectedMessageIdx < len(filteredMessages) {
@@ -330,6 +327,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.detailMessage = &filteredMessages[m.selectedMessageIdx]
 						m.detailScrollOffset = 0
 					}
+				}
+
+				// Only re-render viewport content when cursor moves
+				if needsRender {
+					cardsContent := m.renderMessageCards()
+					m.messageViewport.SetContent(cardsContent)
 				}
 			}
 		}

@@ -632,10 +632,30 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 
 	headerLine := headerStyle.Render(strings.Join(headerParts, " "))
 
-	// Message content - full width
+	// Message content - show first 2-3 lines for preview
 	contentStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("255"))
-	contentLine := contentStyle.Render(msg.Content)
+
+	// Split content into lines and show first 3
+	contentLines := strings.Split(msg.Content, "\n")
+	var displayLines []string
+	maxLines := 3
+	for i := 0; i < maxLines && i < len(contentLines); i++ {
+		line := contentLines[i]
+		// Truncate very long lines
+		if len(line) > 150 {
+			line = line[:147] + "..."
+		}
+		displayLines = append(displayLines, line)
+	}
+
+	// Add indicator if there's more content
+	contentDisplay := strings.Join(displayLines, "\n")
+	if len(contentLines) > maxLines {
+		contentDisplay += "\n  ┇ (" + fmt.Sprintf("%d more lines", len(contentLines)-maxLines) + ")"
+	}
+
+	contentLine := contentStyle.Render(contentDisplay)
 
 	// Token and cost information
 	var metricLines []string
