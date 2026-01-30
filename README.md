@@ -72,13 +72,17 @@ claudewatch --interval 500ms --show-helpers
 
 | Key | Action |
 |-----|--------|
-| `↑` / `k` | Navigate up in process list |
-| `↓` / `j` | Navigate down in process list |
-| `r` | Manual refresh |
-| `f` | Toggle MCP helper processes visibility |
+| `↑` / `k` | Navigate up |
+| `↓` / `j` | Navigate down |
+| `enter` | View sessions for selected process |
+| `esc` | Go back to process list |
+| `r` | Manual refresh (process view only) |
+| `f` | Toggle MCP helper processes visibility (process view only) |
 | `q` / `Ctrl+C` | Quit |
 
 ## Display columns
+
+### Process View
 
 - **PID**: Process ID
 - **CPU%**: CPU usage percentage
@@ -86,6 +90,24 @@ claudewatch --interval 500ms --show-helpers
 - **UPTIME**: Process runtime (days/hours or hours/minutes)
 - **WORKDIR**: Current working directory (truncated with ~ for home)
 - **COMMAND**: Full command line
+
+### Session View
+
+When you press **Enter** on a process, you see all Claude sessions for that working directory:
+
+- **SESSION ID**: Unique session identifier (truncated UUID)
+- **TITLE**: Session title or name
+- **UPDATED**: Last update timestamp
+
+## Viewing Sessions
+
+Press **Enter** while a process is selected to view all Claude sessions created in that working directory. Sessions are discovered from `~/.claude/projects/` and show:
+
+- Session ID and title
+- Last update timestamp
+- Direct file path to the session JSONL file
+
+This allows you to quickly find and reference specific coding sessions associated with each Claude instance.
 
 ## Architecture
 
