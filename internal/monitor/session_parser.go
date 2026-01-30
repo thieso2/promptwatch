@@ -86,6 +86,9 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 	}
 
 	scanner := bufio.NewScanner(file)
+	// Increase buffer size for large JSONL lines (some can be > 64KB)
+	buf := make([]byte, 0, 512*1024) // 512KB buffer
+	scanner.Buffer(buf, 10*1024*1024) // 10MB max token size
 	lineNum := 0
 
 	for scanner.Scan() {
