@@ -64,13 +64,14 @@ type Model struct {
 	selectedSessionIdx int
 
 	// Session detail view
-	selectedSession  *SessionInfo
-	sessionStats     interface{} // Will hold *monitor.SessionStats
-	messageTable     table.Model
-	messages         []MessageRow
-	messageError     string
-	scrollOffset     int
-	messageFilter    MessageFilter // Filter for messages
+	selectedSession      *SessionInfo
+	sessionStats         interface{} // Will hold *monitor.SessionStats
+	messageTable         table.Model
+	messages             []MessageRow
+	messageError         string
+	scrollOffset         int
+	messageFilter        MessageFilter // Filter for messages
+	filteredMessageCount int           // Count of currently filtered messages
 }
 
 

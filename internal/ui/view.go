@@ -86,10 +86,20 @@ func (m Model) renderSessionDetailView() string {
 
 	// Messages section
 	var messagesContent string
-	if m.messageError != "" {
-		errorStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("1"))
-		messagesContent = errorStyle.Render("Error: " + m.messageError)
+	if m.filteredMessageCount == 0 {
+		// Show feedback when filter results in no messages
+		feedbackStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("3"))
+		if m.messageError != "" {
+			messagesContent = feedbackStyle.Render(m.messageError)
+		} else {
+			messagesContent = feedbackStyle.Render("No messages to display with current filter")
+		}
+	} else if m.messageError != "" && m.messageFilter != FilterAll {
+		// Show status message for filter mode
+		statusStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("10"))
+		messagesContent = statusStyle.Render(m.messageError) + "\n\n" + m.messageTable.View()
 	} else if len(stats.MessageHistory) == 0 {
 		messagesContent = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("8")).
@@ -98,18 +108,25 @@ func (m Model) renderSessionDetailView() string {
 		messagesContent = m.messageTable.View()
 	}
 
-	// Filter status
+	// Filter status with count
 	filterStr := ""
+	filterColor := lipgloss.Color("11")
 	switch m.messageFilter {
 	case FilterUserOnly:
-		filterStr = " [Showing: User Prompts Only]"
+		filterStr = fmt.Sprintf(" [User Prompts: %d]", m.filteredMessageCount)
+		if m.filteredMessageCount == 0 {
+			filterColor = lipgloss.Color("1")
+		}
 	case FilterAssistantOnly:
-		filterStr = " [Showing: Claude Responses Only]"
+		filterStr = fmt.Sprintf(" [Claude Responses: %d]", m.filteredMessageCount)
+		if m.filteredMessageCount == 0 {
+			filterColor = lipgloss.Color("1")
+		}
 	default:
-		filterStr = " [Showing: All Messages]"
+		filterStr = fmt.Sprintf(" [All Messages: %d]", m.filteredMessageCount)
 	}
 	filterStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("11"))
+		Foreground(filterColor)
 	filterText := filterStyle.Render(filterStr)
 
 	// Footer
@@ -167,12 +184,19 @@ func (m Model) renderSessionView() string {
 
 	// Show table or empty message
 	var content string
-	if len(m.sessions) == 0 {
+	if m.filteredMessageCount == 0 {
+		// Show feedback message when no messages in filter
+		var msg string
+		if m.messageError != "" {
+			msg = m.messageError
+		} else {
+			msg = "No messages to display"
+		}
 		content = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("8")).
-			Render("No sessions found for this directory")
+			Foreground(lipgloss.Color("3")).
+			Render(msg)
 	} else {
-		content = m.sessionTable.View()
+		content = m.messageTable.View()
 	}
 
 	footerStyle := lipgloss.NewStyle().

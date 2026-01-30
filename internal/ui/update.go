@@ -51,6 +51,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.viewMode == ViewSessionDetail {
 				m.messageFilter = FilterUserOnly
 				m.updateMessageTable()
+				if m.filteredMessageCount == 0 {
+					m.messageError = "No user prompts found in this session"
+				} else {
+					m.messageError = fmt.Sprintf("Showing %d user prompts", m.filteredMessageCount)
+				}
 				return m, nil
 			}
 		case "a":
@@ -58,6 +63,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.viewMode == ViewSessionDetail {
 				m.messageFilter = FilterAssistantOnly
 				m.updateMessageTable()
+				if m.filteredMessageCount == 0 {
+					m.messageError = "No Claude responses found in this session"
+				} else {
+					m.messageError = fmt.Sprintf("Showing %d Claude responses", m.filteredMessageCount)
+				}
 				return m, nil
 			}
 		case "b":
@@ -65,6 +75,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.viewMode == ViewSessionDetail {
 				m.messageFilter = FilterAll
 				m.updateMessageTable()
+				if m.filteredMessageCount == 0 {
+					m.messageError = "No messages found in this session"
+				} else {
+					m.messageError = fmt.Sprintf("Showing all %d messages", m.filteredMessageCount)
+				}
 				return m, nil
 			}
 		case "enter":
@@ -229,6 +244,9 @@ func (m *Model) updateMessageTable() {
 			filteredMessages = append(filteredMessages, msg)
 		}
 	}
+
+	// Update the filtered message count
+	m.filteredMessageCount = len(filteredMessages)
 
 	// Convert messages to table rows
 	rows := make([]table.Row, len(filteredMessages))
