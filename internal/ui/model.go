@@ -127,8 +127,7 @@ type Model struct {
 	detailScrollOffset   int              // Scroll position in message detail
 
 	// Scroll tracking
-	lastMessageIdx       int   // Track last selected message for stable scrolling
-	messageLinesMap      map[int]int // Map of message index to line count for accurate scrolling
+	lastMessageIdx       int // Track last selected message for stable scrolling
 }
 
 
@@ -161,45 +160,30 @@ type projectsMsg struct {
 }
 
 // scrollToSelection scrolls the viewport to keep selected message visible
-// Uses actual line heights from messageLinesMap for accurate cursor positioning
+// Each message card is exactly 4 lines (header + content + metrics + separator)
 func (m *Model) scrollToSelection() {
-	if len(m.messages) == 0 || m.selectedMessageIdx < 0 || len(m.messageLinesMap) == 0 {
+	if len(m.messages) == 0 || m.selectedMessageIdx < 0 {
 		return
 	}
 
-	// Calculate exact scroll delta by summing actual line heights between old and new position
-	linesDelta := 0
-	start := m.lastMessageIdx
-	end := m.selectedMessageIdx
+	const linesPerCard = 4
 
-	if start < end {
-		// Moving down - sum lines for messages from start+1 to end (inclusive)
-		for i := start + 1; i <= end; i++ {
-			if lines, ok := m.messageLinesMap[i]; ok {
-				linesDelta += lines
-			}
-		}
+	// Calculate scroll delta based on message movement
+	messageDelta := m.selectedMessageIdx - m.lastMessageIdx
+	linesDelta := messageDelta * linesPerCard
+
+	// Scroll by the exact amount needed
+	if linesDelta > 0 {
 		m.messageViewport.LineDown(linesDelta)
-	} else if start > end {
-		// Moving up - sum lines for messages from end to start-1 (inclusive)
-		for i := end; i < start; i++ {
-			if lines, ok := m.messageLinesMap[i]; ok {
-				linesDelta += lines
-			}
-		}
-		m.messageViewport.LineUp(linesDelta)
+	} else if linesDelta < 0 {
+		m.messageViewport.LineUp(-linesDelta)
 	}
 
 	// Update last position
 	m.lastMessageIdx = m.selectedMessageIdx
 
-	// Verify we're within bounds and adjust if needed
-	// Calculate total content lines by summing all message line counts
-	totalContentLines := 0
-	for _, count := range m.messageLinesMap {
-		totalContentLines += count
-	}
-
+	// Ensure we're within bounds
+	totalContentLines := len(m.messages) * linesPerCard
 	maxOffset := totalContentLines - m.messageViewport.Height
 	if maxOffset < 0 {
 		maxOffset = 0
@@ -211,7 +195,7 @@ func (m *Model) scrollToSelection() {
 		m.messageViewport.GotoTop()
 		m.messageViewport.LineDown(maxOffset)
 	} else if currentOffset < 0 {
-		// Somehow scrolled above start, reset to top
+		// Scrolled above start, reset to top
 		m.messageViewport.GotoTop()
 	}
 }

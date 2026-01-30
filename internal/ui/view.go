@@ -553,56 +553,41 @@ func (m Model) renderMessageDetailView() string {
 }
 
 // renderMessageCards renders all messages as cards for the viewport with cursor
-// Also builds messageLinesMap for accurate scroll calculations
 func (m *Model) renderMessageCards() string {
 	if len(m.messages) == 0 {
 		return "No messages to display"
 	}
 
 	var cards []string
-	m.messageLinesMap = make(map[int]int) // Reset line map
 
 	// Render all cards with cursor indicator
 	for i := range m.messages {
 		isSelected := (i == m.selectedMessageIdx)
 		card := renderMessageCard(m.messages[i], isSelected)
 		cards = append(cards, card)
-
-		// Count actual lines in rendered card (count newlines + 1)
-		lineCount := strings.Count(card, "\n") + 1
-		m.messageLinesMap[i] = lineCount
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, cards...)
 }
 
-// renderMessageCard renders a single message as a card with token and cost info
+// renderMessageCard renders a single message as a fixed-height card (4 lines)
+// Standard format: Header | Content | Metrics | Separator
 func renderMessageCard(msg MessageRow, isSelected bool) string {
-	// Color coding based on cost
-	var costColor string
-	if msg.Cost > 0.10 {
-		costColor = "1" // Red for expensive
-	} else if msg.Cost > 0.01 {
-		costColor = "3" // Yellow for medium
-	} else {
-		costColor = "10" // Green for cheap
-	}
-
-	// Cursor indicator - much more prominent when selected
-	cursor := "   "
+	// Cursor indicator
+	cursor := "  "
 	if isSelected {
-		cursor = "► "
+		cursor = "▶"
 	}
 
-	// Role and metadata
+	// Role emoji and label
 	roleEmoji := "👤"
-	roleLabel := "USER"
+	roleLabel := "U"
 	if msg.Role == "assistant" {
 		roleEmoji = "🤖"
-		roleLabel = "ASSISTANT"
+		roleLabel = "A"
 	}
 
-	// Parse timestamp
+	// Parse timestamp HH:MM
 	headerTime := ""
 	if msg.Time != "" {
 		parts := strings.Split(msg.Time, "T")
@@ -614,167 +599,111 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 		}
 	}
 
-	// Build header line with all metadata
-	headerParts := []string{cursor + roleEmoji + " " + roleLabel}
-	headerParts = append(headerParts, "–")
-	headerParts = append(headerParts, headerTime)
-
-	if msg.RelativeTime != "" {
-		headerParts = append(headerParts, msg.RelativeTime)
+	// Build header: [cursor] [role] time [model]
+	headerParts := []string{cursor, roleEmoji, roleLabel}
+	if headerTime != "" {
+		headerParts = append(headerParts, headerTime)
 	}
-
 	if msg.Model != "" && msg.Role == "assistant" {
-		headerParts = append(headerParts, fmt.Sprintf("[%s]", msg.Model))
+		// Extract model name (e.g., "claude-sonnet" from full model ID)
+		modelParts := strings.Split(msg.Model, "-")
+		if len(modelParts) > 0 {
+			headerParts = append(headerParts, modelParts[0])
+		}
 	}
 
-	// Header styling - much more visible when selected
 	headerText := strings.Join(headerParts, " ")
-
 	var headerLine string
 	if isSelected {
-		// Bright, highlighted header for selected message
 		headerStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("226")). // Bright yellow
-			Background(lipgloss.Color("57")).  // Dark blue background
+			Foreground(lipgloss.Color("226")).     // Bright yellow
+			Background(lipgloss.Color("57")).      // Dark blue
 			Bold(true).
 			Padding(0, 1)
 		headerLine = headerStyle.Render(headerText)
 	} else {
-		// Subtle header for non-selected
 		headerStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("11"))
 		headerLine = headerStyle.Render(headerText)
 	}
 
-	// Message content - compact display with consistent line count
-	contentStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255"))
-
-	// Replace newlines with spaces for compact display
-	// This makes all messages display on one line with consistent height
+	// Message content - single line
 	contentCompact := strings.ReplaceAll(msg.Content, "\n", " ")
-
-	// Collapse multiple spaces into single space
 	contentCompact = strings.Join(strings.Fields(contentCompact), " ")
-
-	// Truncate to fit on one line (150 chars = roughly one terminal line)
 	if len(contentCompact) > 150 {
 		contentCompact = contentCompact[:147] + "…"
 	}
+	contentLine := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255")).
+		Render(contentCompact)
 
-	contentLine := contentStyle.Render(contentCompact)
-
-	// Token and cost information
-	var metricLines []string
-
-	if msg.Role == "assistant" && (msg.InputTokens > 0 || msg.OutputTokens > 0) {
-		// Assistant message metrics
-		inStr := fmt.Sprintf("%d", msg.InputTokens)
-		outStr := fmt.Sprintf("%d", msg.OutputTokens)
-
-		metricParts := []string{
-			fmt.Sprintf("In: %s", inStr),
-			fmt.Sprintf("Out: %s", outStr),
-		}
-
-		if msg.CacheCreation > 0 {
-			metricParts = append(metricParts, fmt.Sprintf("Cache-Create: %d", msg.CacheCreation))
-		}
-
-		if msg.CacheRead > 0 {
-			metricParts = append(metricParts, fmt.Sprintf("Cache-Hit: %d", msg.CacheRead))
-		}
-
-		costStr := fmt.Sprintf("$%.4f", msg.Cost)
-		costStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(costColor))
-		metricParts = append(metricParts, costStyle.Render(costStr))
-
-		metricLine := strings.Join(metricParts, "  •  ")
-		metricStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
-		metricLines = append(metricLines, metricStyle.Render(metricLine))
-
-		// Efficiency line
-		if msg.OutputTokens > 0 {
-			efficiency := "balanced"
-			if msg.OutputPercentage > 70 {
-				efficiency = fmt.Sprintf("%d%% output-heavy", msg.OutputPercentage)
-			} else if msg.OutputPercentage < 30 {
-				efficiency = fmt.Sprintf("%d%% input-heavy", 100-msg.OutputPercentage)
+	// Build metrics line (single line for all info)
+	var metricStr string
+	if msg.Role == "assistant" {
+		// Show: In:123 Out:456 Cost:$0.0234
+		if msg.InputTokens > 0 || msg.OutputTokens > 0 {
+			parts := []string{
+				fmt.Sprintf("In:%d", msg.InputTokens),
+				fmt.Sprintf("Out:%d", msg.OutputTokens),
 			}
 
-			ratioStr := fmt.Sprintf("%.1f:1", msg.InputOutputRatio)
-
-			efficiencyParts := []string{
-				efficiency,
-				fmt.Sprintf("Ratio: %s", ratioStr),
+			// Add cache info if present
+			if msg.CacheRead > 0 {
+				parts = append(parts, fmt.Sprintf("Cache:↻%d", msg.CacheRead))
 			}
 
-			if msg.CacheSavings > 0 {
-				efficiencyParts = append(efficiencyParts,
-					fmt.Sprintf("Saved: $%.5f", msg.CacheSavings))
+			// Add cost with color
+			costColor := "10" // Green
+			if msg.Cost > 0.10 {
+				costColor = "1" // Red
+			} else if msg.Cost > 0.01 {
+				costColor = "3" // Yellow
 			}
+			costStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(costColor))
+			parts = append(parts, costStyle.Render(fmt.Sprintf("$%.4f", msg.Cost)))
 
-			efficiencyLine := strings.Join(efficiencyParts, "  •  ")
-			efficiencyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-			metricLines = append(metricLines, efficiencyStyle.Render(efficiencyLine))
+			metricStr = strings.Join(parts, " • ")
 		}
-	} else if msg.Role == "user" {
-		// User message metrics
-		metricParts := []string{fmt.Sprintf("Tokens: %d", msg.InputTokens)}
-
-		if msg.CacheRead > 0 {
-			metricParts = append(metricParts, fmt.Sprintf("Cache: ↻%d", msg.CacheRead))
+	} else {
+		// User message: Tokens:123 Cost:$0.000001
+		parts := []string{
+			fmt.Sprintf("Tokens:%d", msg.InputTokens),
 		}
 
 		if msg.Cost > 0 {
-			costStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(costColor))
-			metricParts = append(metricParts, costStyle.Render(fmt.Sprintf("$%.6f", msg.Cost)))
-
-			if msg.CacheSavings > 0 {
-				metricParts = append(metricParts,
-					fmt.Sprintf("Saved: $%.5f", msg.CacheSavings))
+			costColor := "10" // Green
+			if msg.Cost > 0.01 {
+				costColor = "3" // Yellow
 			}
+			costStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(costColor))
+			parts = append(parts, costStyle.Render(fmt.Sprintf("$%.6f", msg.Cost)))
 		}
 
-		metricLine := strings.Join(metricParts, "  •  ")
-		metricStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
-		metricLines = append(metricLines, metricStyle.Render(metricLine))
+		metricStr = strings.Join(parts, " • ")
 	}
 
-	// Build the message with proper spacing
-	var parts []string
+	metricLine := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("6")).
+		Render(metricStr)
 
-	// Add left bar indicator for selected message
+	// Separator line
+	var separatorLine string
 	if isSelected {
-		// Add left border bar with the header
-		leftBar := lipgloss.NewStyle().
+		separatorLine = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("226")).
-			Render("║")
-		headerWithBar := lipgloss.JoinHorizontal(lipgloss.Top, leftBar, " ", headerLine)
-		parts = append(parts, headerWithBar)
+			Render(strings.Repeat("━", 100))
 	} else {
-		parts = append(parts, headerLine)
-	}
-
-	parts = append(parts, contentLine)
-
-	if len(metricLines) > 0 {
-		parts = append(parts, "")
-		parts = append(parts, metricLines...)
-	}
-
-	// Add visual separator
-	if isSelected {
-		// Bright separator for selected
-		parts = append(parts, lipgloss.NewStyle().
-			Foreground(lipgloss.Color("11")).
-			Render(strings.Repeat("━", 100)))
-	} else {
-		// Subtle separator for non-selected
-		parts = append(parts, lipgloss.NewStyle().
+		separatorLine = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("8")).
-			Render(strings.Repeat("─", 100)))
+			Render(strings.Repeat("─", 100))
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, parts...)
+	// Build card: always 4 lines
+	var lines []string
+	lines = append(lines, headerLine)
+	lines = append(lines, contentLine)
+	lines = append(lines, metricLine)
+	lines = append(lines, separatorLine)
+
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
