@@ -214,7 +214,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	} else if m.viewMode == ViewMessageDetail {
-		// Handle scrolling in message detail view
+		// Handle scrolling and navigation in message detail view
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			if m.detailMessage != nil {
 				content := m.detailMessage.Content
@@ -247,6 +247,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.detailScrollOffset += pageHeight
 					if m.detailScrollOffset > maxScroll {
 						m.detailScrollOffset = maxScroll
+					}
+				case "left":
+					// Previous message
+					if m.selectedMessageIdx > 0 {
+						m.selectedMessageIdx--
+						m.detailScrollOffset = 0
+						stats, ok := m.sessionStats.(*monitor.SessionStats)
+						if ok {
+							filteredMessages := m.getFilteredMessages(stats)
+							if m.selectedMessageIdx >= 0 && m.selectedMessageIdx < len(filteredMessages) {
+								m.detailMessage = &filteredMessages[m.selectedMessageIdx]
+							}
+						}
+					}
+				case "right":
+					// Next message
+					stats, ok := m.sessionStats.(*monitor.SessionStats)
+					if ok {
+						filteredMessages := m.getFilteredMessages(stats)
+						if m.selectedMessageIdx < len(filteredMessages)-1 {
+							m.selectedMessageIdx++
+							m.detailScrollOffset = 0
+							if m.selectedMessageIdx >= 0 && m.selectedMessageIdx < len(filteredMessages) {
+								m.detailMessage = &filteredMessages[m.selectedMessageIdx]
+							}
+						}
 					}
 				}
 			}

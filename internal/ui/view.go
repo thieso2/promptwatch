@@ -378,7 +378,7 @@ func (m Model) renderMessageDetailView() string {
 	// Footer with help
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
-	helpText := "↑/↓: Scroll  |  PgUp/PgDn: Page  |  Home/End: Jump  |  esc: Back  |  q: Quit"
+	helpText := "↑/↓: Scroll  |  ←/→: Prev/Next Message  |  PgUp/PgDn: Page  |  Home/End: Jump  |  esc: Back  |  q: Quit"
 	footer := footerStyle.Render(helpText)
 
 	// Build output with optional tool info
