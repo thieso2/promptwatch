@@ -436,6 +436,11 @@ func (m Model) renderMessageDetailView() string {
 				toolDetails = append(toolDetails, fmt.Sprintf("Arguments: %s", msg.ToolInput))
 			}
 
+			// Add UUID if available
+			if msg.UUID != "" {
+				toolDetails = append(toolDetails, fmt.Sprintf("ID: %s", msg.UUID[:8]))
+			}
+
 			metadataSection = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("11")).
 				Render(strings.Join(toolDetails, " • "))
@@ -484,6 +489,11 @@ func (m Model) renderMessageDetailView() string {
 				metaParts = append(metaParts, costStyle.Render(fmt.Sprintf("$%.4f", totalCost)))
 			}
 
+			// Add UUID if available
+			if msg.UUID != "" {
+				metaParts = append(metaParts, fmt.Sprintf("ID:%s", msg.UUID[:8]))
+			}
+
 			metadataSection = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("244")).
 				Render(strings.Join(metaParts, " · "))
@@ -503,6 +513,49 @@ func (m Model) renderMessageDetailView() string {
 	separator := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("238")).
 		Render(strings.Repeat("─", 88))
+
+	// Build detailed metadata section with all available fields
+	var detailsLines []string
+	var details []string
+
+	// Session and context info
+	if msg.SessionID != "" {
+		details = append(details, fmt.Sprintf("Session: %s", msg.SessionID))
+	}
+	if msg.UUID != "" {
+		details = append(details, fmt.Sprintf("Message ID: %s", msg.UUID))
+	}
+	if msg.ParentUUID != "" {
+		details = append(details, fmt.Sprintf("Parent ID: %s", msg.ParentUUID))
+	}
+
+	// Code context
+	if msg.WorkingDir != "" {
+		details = append(details, fmt.Sprintf("Working Dir: %s", msg.WorkingDir))
+	}
+	if msg.GitBranch != "" {
+		details = append(details, fmt.Sprintf("Git Branch: %s", msg.GitBranch))
+	}
+
+	// Version and user info
+	if msg.Version != "" {
+		details = append(details, fmt.Sprintf("Claude Version: %s", msg.Version))
+	}
+	if msg.UserType != "" {
+		details = append(details, fmt.Sprintf("User Type: %s", msg.UserType))
+	}
+	if msg.IsSidechain {
+		details = append(details, "Sidechain: yes")
+	}
+
+	// Format details
+	if len(details) > 0 {
+		detailsStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("242"))
+		for _, detail := range details {
+			detailsLines = append(detailsLines, detailsStyle.Render(detail))
+		}
+	}
 
 	// Content with wrapping
 	content := msg.Content
@@ -570,12 +623,17 @@ func (m Model) renderMessageDetailView() string {
 		headerTitle,
 		metadataSection,
 		separator,
-		"",
-		contentText,
-		"",
-		scrollText,
-		footer,
 	}
+
+	// Add detailed metadata if available
+	if len(detailsLines) > 0 {
+		output = append(output, "")
+		output = append(output, detailsLines...)
+		output = append(output, "")
+	}
+
+	// Add content and navigation info
+	output = append(output, "", contentText, "", scrollText, footer)
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,

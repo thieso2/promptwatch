@@ -62,6 +62,15 @@ type Message struct {
 	OutputTokens      int    // Number of output tokens (assistant messages)
 	CacheCreation     int    // Tokens used for cache creation
 	CacheRead         int    // Tokens read from cache
+	// Additional session metadata
+	UUID              string // Unique message identifier
+	WorkingDir        string // Current working directory when message was sent
+	SessionID         string // Session ID
+	Version           string // Claude version
+	GitBranch         string // Git branch context
+	UserType          string // Type of user (e.g., "external")
+	ParentUUID        string // Parent message UUID (for branching)
+	IsSidechain       bool   // Whether this is a side/branch conversation
 }
 
 // SessionStats contains aggregated session statistics
@@ -249,6 +258,28 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 					}
 				}
 
+				// Extract additional metadata from entry
+				uuid := ""
+				workingDir := ""
+				sessionID := ""
+				userType := ""
+				parentUUID := ""
+				if u, ok := rawData["uuid"].(string); ok {
+					uuid = u
+				}
+				if cwd, ok := rawData["cwd"].(string); ok {
+					workingDir = cwd
+				}
+				if sid, ok := rawData["sessionId"].(string); ok {
+					sessionID = sid
+				}
+				if ut, ok := rawData["userType"].(string); ok {
+					userType = ut
+				}
+				if pu, ok := rawData["parentUuid"].(string); ok {
+					parentUUID = pu
+				}
+
 				msg := Message{
 					Role:          entry.Message.Role,
 					Content:       contentStr,
@@ -261,6 +292,15 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 					OutputTokens:  outputTokens,
 					CacheCreation: cacheCreation,
 					CacheRead:     cacheRead,
+					// Additional metadata
+					UUID:        uuid,
+					WorkingDir:  workingDir,
+					SessionID:   sessionID,
+					Version:     entry.Version,
+					GitBranch:   entry.GitBranch,
+					UserType:    userType,
+					ParentUUID:  parentUUID,
+					IsSidechain: entry.IsSidechain,
 				}
 				stats.MessageHistory = append(stats.MessageHistory, msg)
 			}
