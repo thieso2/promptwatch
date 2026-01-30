@@ -388,7 +388,7 @@ func (m *Model) updateSessionTable() {
 		rows[i] = table.NewRow(table.RowData{
 			"started":       session.Started,
 			"duration":      session.Duration,
-			"messages":      fmt.Sprintf("%d", session.Messages),
+			"userprompts":   fmt.Sprintf("%d", session.UserPrompts),
 			"interruptions": fmt.Sprintf("%d", session.Interruptions),
 			"title":         truncatePath(session.Title, 36),
 		})

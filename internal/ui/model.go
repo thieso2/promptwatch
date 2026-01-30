@@ -15,14 +15,14 @@ import (
 
 // SessionInfo represents session information for display
 type SessionInfo struct {
-	ID           string
-	Title        string
-	Updated      string
-	Path         string
-	Started      string    // When the session started
-	Duration     string    // Total session duration
-	Messages     int       // Total message count
-	Interruptions int      // Number of resumptions/interruptions
+	ID            string
+	Title         string
+	Updated       string
+	Path          string
+	Started       string    // When the session started
+	Duration      string    // Total session duration
+	UserPrompts   int       // Number of user prompts
+	Interruptions int       // Number of resumptions/interruptions
 }
 
 // MessageRow represents a message for display in the message table
@@ -205,7 +205,7 @@ func (m Model) loadSessions() tea.Cmd {
 			// Extract metadata from session file
 			metadata, err := monitor.GetSessionMetadata(s.FilePath)
 			var startedStr, durationStr string
-			var msgCount, interruptions int
+			var userPrompts, interruptions int
 
 			if err == nil {
 				startedStr = metadata.Started.Format("2006-01-02 15:04")
@@ -217,7 +217,7 @@ func (m Model) loadSessions() tea.Cmd {
 				} else {
 					durationStr = fmt.Sprintf("%dm", minutes)
 				}
-				msgCount = metadata.MessageCount
+				userPrompts = metadata.UserPrompts
 				interruptions = metadata.Interruptions
 			}
 
@@ -228,7 +228,7 @@ func (m Model) loadSessions() tea.Cmd {
 				Path:          s.FilePath,
 				Started:       startedStr,
 				Duration:      durationStr,
-				Messages:      msgCount,
+				UserPrompts:   userPrompts,
 				Interruptions: interruptions,
 			}
 		}
@@ -287,7 +287,7 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 			// Extract metadata from session file
 			metadata, err := monitor.GetSessionMetadata(sessionPath)
 			var startedStr, durationStr string
-			var msgCount, interruptions int
+			var userPrompts, interruptions int
 
 			if err == nil {
 				startedStr = metadata.Started.Format("2006-01-02 15:04")
@@ -299,7 +299,7 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 				} else {
 					durationStr = fmt.Sprintf("%dm", minutes)
 				}
-				msgCount = metadata.MessageCount
+				userPrompts = metadata.UserPrompts
 				interruptions = metadata.Interruptions
 			}
 
@@ -310,7 +310,7 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 				Path:          sessionPath,
 				Started:       startedStr,
 				Duration:      durationStr,
-				Messages:      msgCount,
+				UserPrompts:   userPrompts,
 				Interruptions: interruptions,
 			})
 		}

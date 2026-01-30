@@ -340,6 +340,7 @@ type SessionMetadata struct {
 	Ended         time.Time
 	Duration      time.Duration
 	MessageCount  int
+	UserPrompts   int
 	Interruptions int
 }
 
@@ -359,6 +360,7 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 
 	var firstTime, lastTime time.Time
 	var messageCount int
+	var userPrompts int
 	var lastMessageTime time.Time
 	var interruptions int
 	const interruptionGap = 1 * time.Hour // Consider >1 hour gap as interruption
@@ -390,6 +392,11 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 		if entry.Type == "user" || entry.Type == "assistant" {
 			messageCount++
 
+			// Count user prompts separately
+			if entry.Type == "user" {
+				userPrompts++
+			}
+
 			// Detect interruptions (gaps > 1 hour between messages)
 			if !lastMessageTime.IsZero() && ts.Sub(lastMessageTime) > interruptionGap {
 				interruptions++
@@ -411,6 +418,7 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 		Ended:         lastTime,
 		Duration:      lastTime.Sub(firstTime),
 		MessageCount:  messageCount,
+		UserPrompts:   userPrompts,
 		Interruptions: interruptions,
 	}, nil
 }
