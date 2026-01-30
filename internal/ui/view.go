@@ -610,57 +610,74 @@ func (m Model) renderMessageDetailView() string {
 		}
 	}
 
-	// Content with wrapping
+	// Content display with word wrapping
 	content := msg.Content
-	lines := strings.Split(content, "\n")
+
+	// Set max width for wrapping (use 80 chars or terminal width, whichever is smaller)
+	maxWidth := 80
+	if m.termWidth > 0 && m.termWidth < 80 {
+		maxWidth = m.termWidth - 2
+	}
+
+	// Word-wrap the content
+	var wrappedLines []string
+	for _, paragraph := range strings.Split(content, "\n") {
+		// Handle empty lines
+		if paragraph == "" {
+			wrappedLines = append(wrappedLines, "")
+			continue
+		}
+
+		// Word-wrap long lines
+		words := strings.Fields(paragraph)
+		var currentLine string
+		for _, word := range words {
+			if currentLine == "" {
+				currentLine = word
+			} else if len(currentLine)+1+len(word) <= maxWidth {
+				currentLine += " " + word
+			} else {
+				wrappedLines = append(wrappedLines, currentLine)
+				currentLine = word
+			}
+		}
+		if currentLine != "" {
+			wrappedLines = append(wrappedLines, currentLine)
+		}
+	}
 
 	// Calculate visible lines based on terminal height
-	pageHeight := m.termHeight - 8 // Leave space for header, footer, metadata
+	pageHeight := m.termHeight - 10 // Leave space for header, footer, metadata
 	if pageHeight < 5 {
 		pageHeight = 5 // Minimum
 	}
 
-	// Get the visible portion of lines
+	// Get the visible portion of wrapped lines
 	var visibleLines []string
-	if m.detailScrollOffset+pageHeight < len(lines) {
-		visibleLines = lines[m.detailScrollOffset : m.detailScrollOffset+pageHeight]
-	} else if m.detailScrollOffset < len(lines) {
-		visibleLines = lines[m.detailScrollOffset:]
+	if m.detailScrollOffset+pageHeight < len(wrappedLines) {
+		visibleLines = wrappedLines[m.detailScrollOffset : m.detailScrollOffset+pageHeight]
+	} else if m.detailScrollOffset < len(wrappedLines) {
+		visibleLines = wrappedLines[m.detailScrollOffset:]
 	}
 
-	// Display content with word wrapping for long lines
-	var displayContent strings.Builder
-	maxWidth := m.termWidth - 4 // Leave some margin
-	if maxWidth < 40 {
-		maxWidth = 40
-	}
-
+	// Display the visible content
 	contentStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("255"))
 
-	for _, line := range visibleLines {
-		// Wrap long lines
-		if len(line) > maxWidth {
-			for len(line) > 0 {
-				if len(line) <= maxWidth {
-					displayContent.WriteString(line)
-					break
-				}
-				displayContent.WriteString(line[:maxWidth])
-				displayContent.WriteString("\n")
-				line = line[maxWidth:]
-			}
-		} else {
-			displayContent.WriteString(line)
+	contentText := contentStyle.Render(strings.Join(visibleLines, "\n"))
+
+	// Scroll position indicator showing actual line numbers
+	totalLines := len(wrappedLines)
+	var scrollInfo string
+	if totalLines == 0 {
+		scrollInfo = "No content"
+	} else {
+		endLine := m.detailScrollOffset + len(visibleLines)
+		if endLine > totalLines {
+			endLine = totalLines
 		}
-		displayContent.WriteString("\n")
+		scrollInfo = fmt.Sprintf("Line %d-%d of %d", m.detailScrollOffset+1, endLine, totalLines)
 	}
-
-	contentText := contentStyle.Render(displayContent.String())
-
-	// Scroll position indicator
-	totalLines := len(lines)
-	scrollInfo := fmt.Sprintf("Line %d-%d of %d", m.detailScrollOffset+1, m.detailScrollOffset+len(visibleLines), totalLines)
 	scrollStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
 	scrollText := scrollStyle.Render(scrollInfo)
