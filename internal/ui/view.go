@@ -157,13 +157,13 @@ func (m Model) renderSessionDetailView() string {
 		statusStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("10"))
 		messagesComponents = append(messagesComponents, statusStyle.Render(m.messageError))
-		messagesComponents = append(messagesComponents, m.messageTable.View())
+		messagesComponents = append(messagesComponents, m.renderMessageCards())
 	} else if len(stats.MessageHistory) == 0 {
 		messagesComponents = append(messagesComponents, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("8")).
 			Render("No messages in this session"))
 	} else {
-		messagesComponents = append(messagesComponents, m.messageTable.View())
+		messagesComponents = append(messagesComponents, m.renderMessageCards())
 	}
 
 	messagesContent := lipgloss.JoinVertical(lipgloss.Left, messagesComponents...)
@@ -548,4 +548,160 @@ func (m Model) renderMessageDetailView() string {
 		lipgloss.Left,
 		output...,
 	)
+}
+
+// renderMessageCards renders messages in a beautiful card format with token and cost information
+func (m Model) renderMessageCards() string {
+	if len(m.messages) == 0 {
+		return "No messages to display"
+	}
+
+	var cards []string
+
+	for _, msg := range m.messages {
+		card := renderMessageCard(msg)
+		cards = append(cards, card)
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, cards...)
+}
+
+// renderMessageCard renders a single message as a card with token and cost info
+func renderMessageCard(msg MessageRow) string {
+	// Color coding based on cost
+	var costColor string
+	if msg.Cost > 0.10 {
+		costColor = "1" // Red for expensive
+	} else if msg.Cost > 0.01 {
+		costColor = "3" // Yellow for medium
+	} else {
+		costColor = "10" // Green for cheap
+	}
+
+	// Header with role, number, timestamp
+	roleLabel := "USER"
+	roleEmoji := "👤"
+	if msg.Role == "assistant" {
+		roleLabel = "ASSISTANT"
+		roleEmoji = "🤖"
+	}
+
+	headerTime := ""
+	if msg.Time != "" {
+		// Parse and format time
+		parts := strings.Split(msg.Time, "T")
+		if len(parts) >= 2 {
+			timePart := strings.Split(parts[1], "Z")[0]
+			if idx := strings.LastIndex(timePart, ":"); idx > 0 {
+				headerTime = timePart[:idx] // Remove seconds
+			}
+		}
+	}
+
+	relativeStr := ""
+	if msg.RelativeTime != "" {
+		relativeStr = " " + msg.RelativeTime
+	}
+
+	modelStr := ""
+	if msg.Model != "" && msg.Role == "assistant" {
+		modelStr = fmt.Sprintf(" [%s]", msg.Model)
+	}
+
+	headerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("11")).
+		Bold(true)
+	headerLine := fmt.Sprintf("%s %s #%d %s%s%s",
+		roleEmoji, roleLabel, msg.Index, headerTime, relativeStr, modelStr)
+	header := headerStyle.Render(headerLine)
+
+	// Content with truncation
+	contentStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255"))
+	content := msg.Content
+	if len(content) > 80 {
+		content = content[:77] + "..."
+	}
+	contentLine := contentStyle.Render(content)
+
+	// Token and cost line
+	var tokensLine string
+	if msg.Role == "assistant" && (msg.InputTokens > 0 || msg.OutputTokens > 0) {
+		// Format tokens with thousands separators
+		inStr := fmt.Sprintf("%d", msg.InputTokens)
+		outStr := fmt.Sprintf("%d", msg.OutputTokens)
+
+		cacheStr := ""
+		if msg.CacheCreation > 0 {
+			cacheStr = fmt.Sprintf("  │  Cache-Create: %d", msg.CacheCreation)
+		}
+		if msg.CacheRead > 0 {
+			cacheStr += fmt.Sprintf("  │  Cache-Hit: %d", msg.CacheRead)
+		}
+
+		costStr := fmt.Sprintf("  │  Cost: $%.4f", msg.Cost)
+
+		costStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color(costColor))
+
+		tokensLine = fmt.Sprintf("In: %s  →  Out: %s%s%s",
+			inStr, outStr, cacheStr, costStyle.Render(costStr))
+	} else if msg.Role == "user" && msg.Cost > 0 {
+		// User messages have minimal token info
+		tokensLine = fmt.Sprintf("Tokens: %d  │  Cost: $%.6f", msg.InputTokens, msg.Cost)
+	} else if msg.Role == "user" {
+		tokensLine = fmt.Sprintf("Tokens: %d", msg.InputTokens)
+	}
+
+	tokensStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("6"))
+	tokensFormatted := tokensStyle.Render(tokensLine)
+
+	// Efficiency metrics line
+	var efficiencyLine string
+	if msg.Role == "assistant" && msg.OutputTokens > 0 {
+		// Determine if input or output heavy
+		efficiency := "balanced"
+		if msg.OutputPercentage > 70 {
+			efficiency = fmt.Sprintf("%d%% output-heavy", msg.OutputPercentage)
+		} else if msg.OutputPercentage < 30 {
+			efficiency = fmt.Sprintf("%d%% input-heavy", 100-msg.OutputPercentage)
+		}
+
+		ratioStr := fmt.Sprintf("%.1f:1", msg.InputOutputRatio)
+
+		savingsStr := ""
+		if msg.CacheSavings > 0 {
+			savingsStr = fmt.Sprintf("  │  Cache savings: $%.5f", msg.CacheSavings)
+		}
+
+		efficiencyLine = fmt.Sprintf("Efficiency: %s  │  Ratio: %s%s",
+			efficiency, ratioStr, savingsStr)
+	}
+
+	efficiencyStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	efficiencyFormatted := ""
+	if efficiencyLine != "" {
+		efficiencyFormatted = efficiencyStyle.Render(efficiencyLine)
+	}
+
+	// Build the card
+	borderStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("8")).
+		Padding(0, 1)
+
+	var cardContent []string
+	cardContent = append(cardContent, header)
+	cardContent = append(cardContent, contentLine)
+	if tokensLine != "" {
+		cardContent = append(cardContent, tokensFormatted)
+	}
+	if efficiencyFormatted != "" {
+		cardContent = append(cardContent, efficiencyFormatted)
+	}
+
+	card := borderStyle.Render(lipgloss.JoinVertical(lipgloss.Left, cardContent...))
+	return card
 }

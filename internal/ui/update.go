@@ -10,6 +10,14 @@ import (
 	"github.com/thies/claudewatch/internal/monitor"
 )
 
+// Cost constants based on Claude API pricing
+const (
+	InputTokenCost           = 3.0 / 1_000_000      // $3 per 1M input tokens
+	CacheCreationTokenCost   = 3.0 / 1_000_000      // $3 per 1M cache creation tokens
+	CacheReadTokenCost       = 0.30 / 1_000_000     // $0.30 per 1M cache read tokens
+	OutputTokenCost          = 15.0 / 1_000_000     // $15 per 1M output tokens
+)
+
 // Update handles incoming messages and updates the model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -455,7 +463,7 @@ func (m *Model) updateProjectsTable() {
 	m.projectsTable = m.projectsTable.WithRows(rows)
 }
 
-// updateMessageTable rebuilds the message table with current message data
+// updateMessageTable rebuilds the message list with current message data
 func (m *Model) updateMessageTable() {
 	if m.sessionStats == nil {
 		return
@@ -487,58 +495,120 @@ func (m *Model) updateMessageTable() {
 	// Update the filtered message count
 	m.filteredMessageCount = len(filteredMessages)
 
-	// Convert messages to table rows
-	rows := make([]table.Row, len(filteredMessages))
+	// Convert messages to MessageRow with full token/cost data
+	m.messages = make([]MessageRow, len(filteredMessages))
+
+	var prevTime time.Time
 
 	for i, msg := range filteredMessages {
-		// Replace all newlines with spaces first
-		content := strings.ReplaceAll(msg.Content, "\n", " ")
-
-		// For tool results and tool calls, prepend tool name if available
-		if msg.ToolName != "" && (msg.Type == "tool_result" || msg.Type == "assistant_response") {
-			toolInfo := fmt.Sprintf("[%s", msg.ToolName)
-			if msg.ToolInput != "" {
-				toolInput := strings.ReplaceAll(msg.ToolInput, "\n", " ")
-				if len(toolInput) > 40 {
-					toolInput = toolInput[:37] + "..."
+		// Calculate relative time
+		relativeTime := ""
+		if i > 0 && !prevTime.IsZero() {
+			diff := msg.Timestamp.Sub(prevTime)
+			if diff > 0 {
+				seconds := int(diff.Seconds())
+				if seconds < 60 {
+					relativeTime = fmt.Sprintf("+%ds", seconds)
+				} else {
+					minutes := seconds / 60
+					seconds := seconds % 60
+					relativeTime = fmt.Sprintf("+%dm%ds", minutes, seconds)
 				}
-				toolInfo += fmt.Sprintf(" %s", toolInput)
 			}
-			toolInfo += "] "
-			content = toolInfo + content
 		}
+		prevTime = msg.Timestamp
 
-		// Truncate content for display
-		if len(content) > 76 {
-			content = content[:73] + "..."
+		// Calculate costs and efficiency metrics
+		cost, savings := calculateMessageCost(&msg)
+		ratio, outputPercent := calculateRatio(msg.InputTokens, msg.OutputTokens)
+
+		m.messages[i] = MessageRow{
+			Index:            i + 1,
+			Role:             msg.Role,
+			Content:          msg.Content,
+			Time:             msg.Timestamp.Format(time.RFC3339Nano),
+			Model:            msg.Model,
+			InputTokens:      msg.InputTokens,
+			OutputTokens:     msg.OutputTokens,
+			CacheCreation:    msg.CacheCreation,
+			CacheRead:        msg.CacheRead,
+			Cost:             cost,
+			RelativeTime:     relativeTime,
+			InputOutputRatio: ratio,
+			OutputPercentage: outputPercent,
+			CacheSavings:     savings,
 		}
+	}
 
-		// Create a marker for the message type
+	// Update the table for compatibility (it's used for selection and navigation)
+	rows := make([]table.Row, len(m.messages))
+	for i, row := range m.messages {
+		// Create display text for table (minimal, cards will be rendered separately)
 		roleStr := ""
-		switch msg.Type {
-		case "prompt":
-			roleStr = "👤 user"
-		case "assistant_response":
-			roleStr = "🤖 assistant"
-		case "tool_result":
-			roleStr = "📋 tool"
-		default:
-			// Fallback to role-based display
-			if msg.Role == "user" {
-				roleStr = "👤 user"
-			} else if msg.Role == "assistant" {
-				roleStr = "🤖 assistant"
-			}
+		if row.Role == "user" {
+			roleStr = "👤"
+		} else if row.Role == "assistant" {
+			roleStr = "🤖"
+		}
+
+		// Truncate content for list display
+		content := strings.ReplaceAll(row.Content, "\n", " ")
+		if len(content) > 70 {
+			content = content[:67] + "..."
 		}
 
 		rows[i] = table.NewRow(table.RowData{
 			"role":    roleStr,
 			"content": content,
-			"time":    msg.Timestamp.Format("15:04:05"),
+			"time":    row.Time,
 		})
 	}
 
 	m.messageTable = m.messageTable.WithRows(rows)
+}
+
+// calculateMessageCost calculates the cost for a single message
+func calculateMessageCost(msg *monitor.Message) (cost float64, savings float64) {
+	if msg.Type != "assistant_response" {
+		return 0, 0
+	}
+
+	// Input cost
+	inputCost := float64(msg.InputTokens) * InputTokenCost
+	cacheCreationCost := float64(msg.CacheCreation) * CacheCreationTokenCost
+	cacheReadCost := float64(msg.CacheRead) * CacheReadTokenCost
+	outputCost := float64(msg.OutputTokens) * OutputTokenCost
+
+	cost = inputCost + cacheCreationCost + cacheReadCost + outputCost
+
+	// Cache savings (what it would have cost without cache hits)
+	if msg.CacheRead > 0 {
+		// Cache hits would have cost regular input rate
+		normalCacheReadCost := float64(msg.CacheRead) * InputTokenCost
+		savings = normalCacheReadCost - cacheReadCost
+	}
+
+	return cost, savings
+}
+
+// calculateRatio calculates input/output ratio and output percentage
+func calculateRatio(inputTokens, outputTokens int) (ratio float64, outputPercent int) {
+	total := inputTokens + outputTokens
+	if total == 0 {
+		return 0, 0
+	}
+
+	if outputTokens == 0 {
+		return float64(inputTokens), 0
+	}
+	if inputTokens == 0 {
+		return 0, 100
+	}
+
+	ratio = float64(inputTokens) / float64(outputTokens)
+	outputPercent = (outputTokens * 100) / total
+
+	return ratio, outputPercent
 }
 
 // Helper functions for formatting

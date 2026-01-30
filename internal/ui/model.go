@@ -32,12 +32,22 @@ type SessionInfo struct {
 	OutputTokens  int       // Total output tokens
 }
 
-// MessageRow represents a message for display in the message table
+// MessageRow represents a message for display in the message card view
 type MessageRow struct {
-	Index   int
-	Role    string
-	Content string
-	Time    string
+	Index              int       // Message sequence number
+	Role               string    // "user" or "assistant"
+	Content            string    // Message text
+	Time               string    // Timestamp (ISO8601)
+	Model              string    // Claude model used (assistant only)
+	InputTokens        int       // Input tokens (assistant only)
+	OutputTokens       int       // Output tokens (assistant only)
+	CacheCreation      int       // Tokens written to cache (assistant only)
+	CacheRead          int       // Tokens read from cache (assistant only)
+	Cost               float64   // Estimated cost in USD
+	RelativeTime       string    // Time since previous message (e.g., "+2s")
+	InputOutputRatio   float64   // Input tokens / Output tokens
+	OutputPercentage   int       // Output tokens as % of total (0-100)
+	CacheSavings       float64   // Estimated savings from cache hits (USD)
 }
 
 // ViewMode represents the current view being displayed
