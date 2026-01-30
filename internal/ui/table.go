@@ -107,7 +107,7 @@ func createSessionTableWithWidth(width int) table.Model {
 
 	// Column width distribution - sized for actual data
 	// Version: 8 chars (v2.1.25)
-	// GitBranch: 12 chars (feature/name or "-")
+	// GitBranch: 20 chars (ingress-validation or feature/name)
 	// Tokens: 16 chars (5039568/5211 format)
 	// Started: 16 chars (2026-01-30 14:23)
 	// Duration: 7 chars (12h34m or 999m)
@@ -115,7 +115,7 @@ func createSessionTableWithWidth(width int) table.Model {
 	// Int: 4 chars (count)
 	// Remaining for title
 	versionWidth := 8
-	gitWidth := 12
+	gitWidth := 20
 	tokensWidth := 16
 	startedWidth := 16
 	durationWidth := 7
