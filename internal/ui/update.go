@@ -177,10 +177,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.termWidth = msg.Width
 		m.termHeight = msg.Height
 		// Recreate tables with new responsive widths
-		m.table = createTableWithWidth(msg.Width).WithPageSize(msg.Height - 4)
-		m.projectsTable = createProjectsTableWithWidth(msg.Width).WithPageSize(msg.Height - 4)
-		m.sessionTable = createSessionTableWithWidth(msg.Width).WithPageSize(msg.Height - 4)
-		m.messageTable = createMessageTableWithWidth(msg.Width).WithPageSize(msg.Height - 10)
+		// Account for: header (1) + blank (1) + blank (1) + footer (1) = 4 lines overhead
+		m.table = createTableWithWidth(msg.Width).WithPageSize(msg.Height - 5)
+		m.projectsTable = createProjectsTableWithWidth(msg.Width).WithPageSize(msg.Height - 5)
+		m.sessionTable = createSessionTableWithWidth(msg.Width).WithPageSize(msg.Height - 5)
+		// Message table has more overhead: header (1) + time (1) + tool info (1) + blank (1) + blank (1) + scroll (1) + footer (1) = 7
+		m.messageTable = createMessageTableWithWidth(msg.Width).WithPageSize(msg.Height - 8)
 		// Rebuild tables with current data
 		m.updateTable()
 		m.updateProjectsTable()
