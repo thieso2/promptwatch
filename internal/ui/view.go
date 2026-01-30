@@ -281,7 +281,11 @@ func (m Model) renderMessageDetailView() string {
 	case "prompt":
 		roleStr = "Your Prompt"
 	case "assistant_response":
-		roleStr = "Claude Response"
+		if m.detailMessage.ToolName != "" {
+			roleStr = fmt.Sprintf("Claude Tool Call: %s", m.detailMessage.ToolName)
+		} else {
+			roleStr = "Claude Response"
+		}
 	case "tool_result":
 		roleStr = fmt.Sprintf("Tool Result: %s", m.detailMessage.ToolName)
 	default:
@@ -301,6 +305,18 @@ func (m Model) renderMessageDetailView() string {
 	timeStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
 	timeText := timeStyle.Render(fmt.Sprintf("Time: %s", timeStr))
+
+	// Tool info if available
+	var toolInfoText string
+	if m.detailMessage.ToolName != "" {
+		toolInfo := fmt.Sprintf("Tool: %s", m.detailMessage.ToolName)
+		if m.detailMessage.ToolInput != "" {
+			toolInfo += fmt.Sprintf(" | Arguments: %s", m.detailMessage.ToolInput)
+		}
+		toolInfoStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("10"))
+		toolInfoText = toolInfoStyle.Render(toolInfo)
+	}
 
 	// Content with wrapping
 	content := m.detailMessage.Content
@@ -365,14 +381,15 @@ func (m Model) renderMessageDetailView() string {
 	helpText := "↑/↓: Scroll  |  PgUp/PgDn: Page  |  Home/End: Jump  |  esc: Back  |  q: Quit"
 	footer := footerStyle.Render(helpText)
 
+	// Build output with optional tool info
+	output := []string{headerTitle, timeText}
+	if toolInfoText != "" {
+		output = append(output, toolInfoText)
+	}
+	output = append(output, "", contentText, "", scrollText, footer)
+
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		headerTitle,
-		timeText,
-		"",
-		contentText,
-		"",
-		scrollText,
-		footer,
+		output...,
 	)
 }
