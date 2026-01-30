@@ -211,52 +211,64 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	if m.viewMode == ViewProcesses {
 		m.table, cmd = m.table.Update(msg)
-		// Track arrow key presses for selection
+		// Track arrow key presses for selection with wrapping
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			switch keyMsg.String() {
 			case "up":
 				if m.selectedProcIdx > 0 {
 					m.selectedProcIdx--
+				} else if len(m.processes) > 0 {
+					m.selectedProcIdx = len(m.processes) - 1
 				}
 			case "down":
 				if m.selectedProcIdx < len(m.processes)-1 {
 					m.selectedProcIdx++
+				} else if len(m.processes) > 0 {
+					m.selectedProcIdx = 0
 				}
 			}
 		}
 	} else if m.viewMode == ViewProjects {
 		m.projectsTable, cmd = m.projectsTable.Update(msg)
-		// Track arrow key presses for project selection
+		// Track arrow key presses for project selection with wrapping
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			switch keyMsg.String() {
 			case "up":
 				if m.selectedProjIdx > 0 {
 					m.selectedProjIdx--
+				} else if len(m.projects) > 0 {
+					m.selectedProjIdx = len(m.projects) - 1
 				}
 			case "down":
 				if m.selectedProjIdx < len(m.projects)-1 {
 					m.selectedProjIdx++
+				} else if len(m.projects) > 0 {
+					m.selectedProjIdx = 0
 				}
 			}
 		}
 	} else if m.viewMode == ViewSessions {
 		m.sessionTable, cmd = m.sessionTable.Update(msg)
-		// Track arrow key presses for session selection
+		// Track arrow key presses for session selection with wrapping
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			switch keyMsg.String() {
 			case "up":
 				if m.selectedSessionIdx > 0 {
 					m.selectedSessionIdx--
+				} else if len(m.sessions) > 0 {
+					m.selectedSessionIdx = len(m.sessions) - 1
 				}
 			case "down":
 				if m.selectedSessionIdx < len(m.sessions)-1 {
 					m.selectedSessionIdx++
+				} else if len(m.sessions) > 0 {
+					m.selectedSessionIdx = 0
 				}
 			}
 		}
 	} else if m.viewMode == ViewSessionDetail {
 		m.messageTable, cmd = m.messageTable.Update(msg)
-		// Track arrow key presses for message selection
+		// Track arrow key presses for message selection with wrapping
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			stats, ok := m.sessionStats.(*monitor.SessionStats)
 			if ok {
@@ -265,10 +277,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case "up":
 					if m.selectedMessageIdx > 0 {
 						m.selectedMessageIdx--
+					} else if len(filteredMessages) > 0 {
+						m.selectedMessageIdx = len(filteredMessages) - 1
 					}
 				case "down":
 					if m.selectedMessageIdx < len(filteredMessages)-1 {
 						m.selectedMessageIdx++
+					} else if len(filteredMessages) > 0 {
+						m.selectedMessageIdx = 0
 					}
 				}
 			}
