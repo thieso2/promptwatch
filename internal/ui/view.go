@@ -552,7 +552,7 @@ func (m Model) renderMessageDetailView() string {
 	)
 }
 
-// renderMessageCards renders all messages as cards for the viewport
+// renderMessageCards renders all messages as cards for the viewport with cursor
 func (m Model) renderMessageCards() string {
 	if len(m.messages) == 0 {
 		return "No messages to display"
@@ -560,9 +560,10 @@ func (m Model) renderMessageCards() string {
 
 	var cards []string
 
-	// Render all cards
+	// Render all cards with cursor indicator
 	for i := range m.messages {
-		card := renderMessageCard(m.messages[i])
+		isSelected := (i == m.selectedMessageIdx)
+		card := renderMessageCard(m.messages[i], isSelected)
 		cards = append(cards, card)
 	}
 
@@ -570,7 +571,7 @@ func (m Model) renderMessageCards() string {
 }
 
 // renderMessageCard renders a single message as a card with token and cost info
-func renderMessageCard(msg MessageRow) string {
+func renderMessageCard(msg MessageRow, isSelected bool) string {
 	// Color coding based on cost
 	var costColor string
 	if msg.Cost > 0.10 {
@@ -579,6 +580,12 @@ func renderMessageCard(msg MessageRow) string {
 		costColor = "3" // Yellow for medium
 	} else {
 		costColor = "10" // Green for cheap
+	}
+
+	// Cursor indicator
+	cursorStr := "  "
+	if isSelected {
+		cursorStr = "▶ "
 	}
 
 	// Header with role, number, timestamp
@@ -611,11 +618,16 @@ func renderMessageCard(msg MessageRow) string {
 		modelStr = fmt.Sprintf(" [%s]", msg.Model)
 	}
 
+	// Header styling - highlight if selected
 	headerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("11")).
 		Bold(true)
-	headerLine := fmt.Sprintf("%s %s #%d %s%s%s",
-		roleEmoji, roleLabel, msg.Index, headerTime, relativeStr, modelStr)
+	if isSelected {
+		headerStyle = headerStyle.Background(lipgloss.Color("234")).Foreground(lipgloss.Color("11"))
+	}
+
+	headerLine := fmt.Sprintf("%s%s %s #%d %s%s%s",
+		cursorStr, roleEmoji, roleLabel, msg.Index, headerTime, relativeStr, modelStr)
 	header := headerStyle.Render(headerLine)
 
 	// Content with truncation
@@ -692,8 +704,17 @@ func renderMessageCard(msg MessageRow) string {
 	// Build the card
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("8")).
 		Padding(0, 1)
+
+	// Highlight border if selected
+	if isSelected {
+		borderStyle = borderStyle.
+			BorderForeground(lipgloss.Color("11")).
+			Background(lipgloss.Color("233"))
+	} else {
+		borderStyle = borderStyle.
+			BorderForeground(lipgloss.Color("8"))
+	}
 
 	var cardContent []string
 	cardContent = append(cardContent, header)

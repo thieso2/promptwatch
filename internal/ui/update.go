@@ -180,6 +180,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.messageError = ""
 			m.sessionStats = msg.stats
+			m.selectedMessageIdx = 0 // Reset cursor to first message
 			m.messageViewport.GotoTop() // Reset viewport scroll when loading new session
 			m.updateMessageTable()
 		}
@@ -281,7 +282,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	} else if m.viewMode == ViewSessionDetail {
 		m.messageTable, cmd = m.messageTable.Update(msg)
-		// Handle scrolling and message navigation in session detail view
+		// Handle cursor movement and scrolling in session detail view
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			stats, ok := m.sessionStats.(*monitor.SessionStats)
 			if ok {
@@ -289,11 +290,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				switch keyMsg.String() {
 				case "up":
-					// Scroll up in message cards
-					m.messageViewport.LineUp(1)
+					// Move cursor up
+					if m.selectedMessageIdx > 0 {
+						m.selectedMessageIdx--
+						// Scroll viewport to keep selected message visible
+						m.updateMessageTable() // Re-render to update cursor
+						// Scroll up if needed
+						m.messageViewport.LineUp(1)
+					}
 				case "down":
-					// Scroll down in message cards
-					m.messageViewport.LineDown(1)
+					// Move cursor down
+					if m.selectedMessageIdx < len(m.messages)-1 {
+						m.selectedMessageIdx++
+						// Scroll viewport to keep selected message visible
+						m.updateMessageTable() // Re-render to update cursor
+						// Scroll down if needed
+						m.messageViewport.LineDown(1)
+					}
 				case "pgup":
 					// Page up
 					m.messageViewport.HalfViewUp()
@@ -302,10 +315,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.messageViewport.HalfViewDown()
 				case "home":
 					// Jump to top
+					m.selectedMessageIdx = 0
 					m.messageViewport.GotoTop()
+					m.updateMessageTable()
 				case "end":
 					// Jump to bottom
+					m.selectedMessageIdx = len(m.messages) - 1
 					m.messageViewport.GotoBottom()
+					m.updateMessageTable()
 				case "enter":
 					// Open message detail view for selected message
 					if m.selectedMessageIdx >= 0 && m.selectedMessageIdx < len(filteredMessages) {
