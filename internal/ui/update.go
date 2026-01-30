@@ -24,13 +24,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Toggle helpers filter
 			m.showHelpers = !m.showHelpers
 			return m, m.refreshProcesses()
-		case "up", "k":
-			// Navigate table up - handled by table Update
-			return m, nil
-		case "down", "j":
-			// Navigate table down - handled by table Update
-			return m, nil
 		}
+		// Fall through to table handling for navigation and other keys
 
 	case tickMsg:
 		// Periodic refresh
@@ -51,6 +46,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Pass all other messages to the table (including navigation keys)
 	var cmd tea.Cmd
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
