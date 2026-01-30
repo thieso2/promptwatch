@@ -29,8 +29,44 @@ func createTable() table.Model {
 
 // createTableWithWidth creates a table with columns sized for the given width
 func createTableWithWidth(width int) table.Model {
-	// Use fixed large widths that will fill most screens
-	return createTable()
+	// Calculate responsive column widths
+	// Reserve space for borders and padding (roughly 2 chars per column)
+	availableWidth := width - 14 // Reserve for borders and spacing
+
+	// Proportional distribution: PID(5%) CPU(7%) MEM(8%) UPTIME(8%) WORKDIR(30%) CMD(42%)
+	pidWidth := 8
+	cpuWidth := 10
+	memWidth := 12
+	uptimeWidth := 12
+	workdirWidth := (availableWidth * 30) / 100
+	cmdWidth := availableWidth - pidWidth - cpuWidth - memWidth - uptimeWidth - workdirWidth
+
+	// Ensure minimum widths
+	if workdirWidth < 20 {
+		workdirWidth = 20
+	}
+	if cmdWidth < 20 {
+		cmdWidth = 20
+	}
+
+	columns := []table.Column{
+		table.NewColumn("pid", "PID", pidWidth),
+		table.NewColumn("cpu", "CPU%", cpuWidth),
+		table.NewColumn("mem", "MEM", memWidth),
+		table.NewColumn("uptime", "UPTIME", uptimeWidth),
+		table.NewColumn("workdir", "WORKDIR", workdirWidth),
+		table.NewColumn("cmd", "COMMAND", cmdWidth),
+	}
+
+	t := table.New(columns).
+		WithPageSize(20).
+		WithBaseStyle(
+			lipgloss.NewStyle().
+				Foreground(lipgloss.Color("255")),
+		).
+		Focused(true)
+
+	return t
 }
 
 // styleHighCPU applies red styling to high CPU values
@@ -66,15 +102,43 @@ func createSessionTable() table.Model {
 
 // createSessionTableWithWidth creates a session table with columns sized for the given width
 func createSessionTableWithWidth(width int) table.Model {
-	// Use fixed large widths that will fill most screens
-	return createSessionTable()
+	// Calculate responsive column widths
+	availableWidth := width - 6 // Reserve for borders and spacing
+
+	idWidth := (availableWidth * 30) / 100
+	titleWidth := (availableWidth * 50) / 100
+	updatedWidth := availableWidth - idWidth - titleWidth
+
+	// Ensure minimum widths
+	if idWidth < 30 {
+		idWidth = 30
+	}
+	if titleWidth < 30 {
+		titleWidth = 30
+	}
+
+	columns := []table.Column{
+		table.NewColumn("id", "SESSION ID", idWidth),
+		table.NewColumn("title", "TITLE", titleWidth),
+		table.NewColumn("updated", "UPDATED", updatedWidth),
+	}
+
+	t := table.New(columns).
+		WithPageSize(20).
+		WithBaseStyle(
+			lipgloss.NewStyle().
+				Foreground(lipgloss.Color("255")),
+		).
+		Focused(true)
+
+	return t
 }
 
 // createMessageTable initializes the message table
 func createMessageTable() table.Model {
 	columns := []table.Column{
 		table.NewColumn("role", "ROLE", 12),
-		table.NewColumn("content", "MESSAGE", 200),
+		table.NewColumn("content", "MESSAGE", 76),
 		table.NewColumn("time", "TIME", 12),
 	}
 
@@ -91,6 +155,32 @@ func createMessageTable() table.Model {
 
 // createMessageTableWithWidth creates a message table with columns sized for the given width
 func createMessageTableWithWidth(width int) table.Model {
-	// Use fixed large widths that will fill most screens
-	return createMessageTable()
+	// Calculate responsive column widths
+	// Reserve space for borders and padding
+	availableWidth := width - 6 // Reserve for borders and spacing
+
+	roleWidth := 12
+	timeWidth := 12
+	contentWidth := availableWidth - roleWidth - timeWidth
+
+	// Ensure minimum width for content
+	if contentWidth < 40 {
+		contentWidth = 40
+	}
+
+	columns := []table.Column{
+		table.NewColumn("role", "ROLE", roleWidth),
+		table.NewColumn("content", "MESSAGE", contentWidth),
+		table.NewColumn("time", "TIME", timeWidth),
+	}
+
+	t := table.New(columns).
+		WithPageSize(15).
+		WithBaseStyle(
+			lipgloss.NewStyle().
+				Foreground(lipgloss.Color("255")),
+		).
+		Focused(true)
+
+	return t
 }

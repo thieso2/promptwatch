@@ -155,10 +155,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle terminal resize
 		m.termWidth = msg.Width
 		m.termHeight = msg.Height
-		// Just update page sizes, let bubble-table handle layout
-		m.table = m.table.WithPageSize(msg.Height - 4)
-		m.sessionTable = m.sessionTable.WithPageSize(msg.Height - 4)
-		m.messageTable = m.messageTable.WithPageSize(msg.Height - 10)
+		// Recreate tables with new responsive widths
+		m.table = createTableWithWidth(msg.Width).WithPageSize(msg.Height - 4)
+		m.sessionTable = createSessionTableWithWidth(msg.Width).WithPageSize(msg.Height - 4)
+		m.messageTable = createMessageTableWithWidth(msg.Width).WithPageSize(msg.Height - 10)
+		// Rebuild tables with current data
+		m.updateTable()
+		m.updateSessionTable()
+		m.updateMessageTable()
 		return m, nil
 	}
 
