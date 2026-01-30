@@ -1,0 +1,132 @@
+name: Release Binaries
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - os: macOS
+            runner: macos-latest
+            goarch: amd64
+            artifact: claudewatch-darwin-amd64
+            upload_name: claudewatch-darwin-amd64
+
+          - os: macOS ARM64
+            runner: macos-latest
+            goarch: arm64
+            artifact: claudewatch-darwin-arm64
+            upload_name: claudewatch-darwin-arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+
+      - name: Build binary
+        env:
+          GOOS: darwin
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+        run: |
+          go build \
+            -ldflags="-s -w -X main.Version=${{ github.ref_name }}" \
+            -o ${{ matrix.artifact }} \
+            ./cmd/claudewatch
+
+      - name: Create tarball
+        run: |
+          tar czf ${{ matrix.upload_name }}-${{ github.ref_name }}.tar.gz ${{ matrix.artifact }}
+          sha256sum ${{ matrix.upload_name }}-${{ github.ref_name }}.tar.gz > ${{ matrix.upload_name }}-${{ github.ref_name }}.tar.gz.sha256
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ matrix.upload_name }}-${{ github.ref_name }}.tar.gz
+            ${{ matrix.upload_name }}-${{ github.ref_name }}.tar.gz.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  changelog:
+    name: Generate changelog
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION=${{ github.ref_name }}
+          PREV_VERSION=$(git describe --tags --abbrev=0 "$VERSION^" 2>/dev/null || echo "")
+
+          if [ -z "$PREV_VERSION" ]; then
+            COMMITS=$(git log --pretty=format:"- %h: %s (%an)" "$VERSION")
+          else
+            COMMITS=$(git log --pretty=format:"- %h: %s (%an)" "$PREV_VERSION..$VERSION")
+          fi
+
+          {
+            echo "commits<<EOF"
+            echo "$COMMITS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Update release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            ## Changes in ${{ github.ref_name }}
+
+            ${{ steps.changelog.outputs.commits }}
+
+            ## Installation
+
+            ### macOS Intel (x86_64)
+            ```bash
+            wget https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz
+            tar xzf claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz
+            mv claudewatch-darwin-amd64 /usr/local/bin/claudewatch
+            chmod +x /usr/local/bin/claudewatch
+            ```
+
+            ### macOS ARM64 (Apple Silicon)
+            ```bash
+            wget https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz
+            tar xzf claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz
+            mv claudewatch-darwin-arm64 /usr/local/bin/claudewatch
+            chmod +x /usr/local/bin/claudewatch
+            ```
+
+            ## Verification
+
+            Verify the integrity of downloaded binaries using SHA256:
+
+            ```bash
+            sha256sum -c claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz.sha256
+            ```
+
+            ### Release Assets
+
+            | File | Size | Hash |
+            |------|------|------|
+            | `claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz` | [Download](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz.sha256) |
+            | `claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz` | [Download](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz.sha256) |
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
