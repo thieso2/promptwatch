@@ -5,7 +5,6 @@ package monitor
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
 // getWorkingDir retrieves the current working directory of a process on Linux
