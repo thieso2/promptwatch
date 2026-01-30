@@ -156,6 +156,41 @@ type projectsMsg struct {
 	err      error
 }
 
+// scrollToSelection scrolls the viewport to keep the selected message visible
+func (m *Model) scrollToSelection() {
+	if len(m.messages) == 0 || m.selectedMessageIdx < 0 {
+		return
+	}
+
+	// Estimate lines per message (header + content lines + metrics + separator)
+	// This is approximate but helps keep selection visible
+	avgLinesPerMessage := 8
+
+	// Calculate approximate viewport position of selected message
+	selectedMessageLine := m.selectedMessageIdx * avgLinesPerMessage
+
+	// Scroll to show the selected message roughly in the middle of viewport
+	viewportMidpoint := m.messageViewport.Height / 2
+	targetScrollPosition := selectedMessageLine - viewportMidpoint
+
+	if targetScrollPosition < 0 {
+		targetScrollPosition = 0
+	}
+
+	// Set scroll position by moving to target
+	currentOffset := m.messageViewport.YOffset
+
+	if targetScrollPosition > currentOffset {
+		// Need to scroll down
+		linesToScroll := targetScrollPosition - currentOffset
+		m.messageViewport.LineDown(linesToScroll)
+	} else if targetScrollPosition < currentOffset {
+		// Need to scroll up
+		linesToScroll := currentOffset - targetScrollPosition
+		m.messageViewport.LineUp(linesToScroll)
+	}
+}
+
 // NewModel creates a new UI model
 func NewModel(updateInterval time.Duration, showHelpers bool) Model {
 	m := Model{
