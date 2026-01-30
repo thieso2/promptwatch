@@ -17,19 +17,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			m.quitting = true
 			return m, tea.Quit
+		case "esc":
+			// Go back to process list if in session view
+			if m.viewMode == ViewSessions {
+				m.viewMode = ViewProcesses
+				m.selectedProc = nil
+				m.sessions = nil
+				m.sessionError = ""
+				return m, nil
+			}
 		case "r":
-			// Manual refresh
-			return m, m.refreshProcesses()
+			// Manual refresh (only in process view)
+			if m.viewMode == ViewProcesses {
+				return m, m.refreshProcesses()
+			}
 		case "f":
-			// Toggle helpers filter
-			m.showHelpers = !m.showHelpers
-			return m, m.refreshProcesses()
+			// Toggle helpers filter (only in process view)
+			if m.viewMode == ViewProcesses {
+				m.showHelpers = !m.showHelpers
+				return m, m.refreshProcesses()
+			}
+		case "enter":
+			// Open session view for selected process
+			if m.viewMode == ViewProcesses && len(m.processes) > 0 && m.selectedProcIdx >= 0 && m.selectedProcIdx < len(m.processes) {
+				m.selectedProc = &m.processes[m.selectedProcIdx]
+				m.viewMode = ViewSessions
+				return m, m.loadSessions()
+			}
 		}
 		// Fall through to table handling for navigation and other keys
 
 	case tickMsg:
-		// Periodic refresh
-		return m, tea.Batch(m.refreshProcesses(), m.tick())
+		// Periodic refresh (only in process view)
+		if m.viewMode == ViewProcesses {
+			return m, tea.Batch(m.refreshProcesses(), m.tick())
+		} else {
+			return m, m.tick()
+		}
 
 	case processesMsg:
 		if msg.err != nil {
@@ -40,15 +64,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateTable()
 		return m, nil
 
+	case sessionsMsg:
+		if msg.err != nil {
+			m.sessionError = msg.err.Error()
+		} else {
+			m.sessionError = ""
+			m.sessions = msg.sessions
+			m.updateSessionTable()
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		// Handle terminal resize
 		m.table = m.table.WithPageSize(msg.Height - 4)
+		m.sessionTable = m.sessionTable.WithPageSize(msg.Height - 4)
 		return m, nil
 	}
 
-	// Pass all other messages to the table (including navigation keys)
+	// Pass all other messages to the appropriate table
 	var cmd tea.Cmd
-	m.table, cmd = m.table.Update(msg)
+	if m.viewMode == ViewProcesses {
+		m.table, cmd = m.table.Update(msg)
+		// Track arrow key presses for selection
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.String() {
+			case "up":
+				if m.selectedProcIdx > 0 {
+					m.selectedProcIdx--
+				}
+			case "down":
+				if m.selectedProcIdx < len(m.processes)-1 {
+					m.selectedProcIdx++
+				}
+			}
+		}
+	} else {
+		m.sessionTable, cmd = m.sessionTable.Update(msg)
+	}
 	return m, cmd
 }
 
@@ -73,6 +125,21 @@ func (m *Model) updateTable() {
 	}
 
 	m.table = m.table.WithRows(rows)
+}
+
+// updateSessionTable rebuilds the session table with current session data
+func (m *Model) updateSessionTable() {
+	rows := make([]table.Row, len(m.sessions))
+
+	for i, session := range m.sessions {
+		rows[i] = table.NewRow(table.RowData{
+			"id":      truncatePath(session.ID, 36),
+			"title":   truncatePath(session.Title, 36),
+			"updated": session.Updated,
+		})
+	}
+
+	m.sessionTable = m.sessionTable.WithRows(rows)
 }
 
 // Helper functions for formatting

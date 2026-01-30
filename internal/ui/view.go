@@ -12,6 +12,10 @@ func (m Model) View() string {
 		return "Goodbye!\n"
 	}
 
+	if m.viewMode == ViewSessions {
+		return m.renderSessionView()
+	}
+
 	if len(m.processes) == 0 {
 		return m.renderEmpty()
 	}
@@ -38,6 +42,63 @@ func (m Model) renderEmpty() string {
 		lipgloss.Left,
 		header,
 		content,
+		footer,
+	)
+}
+
+// renderSessionView displays the session list for a selected process
+func (m Model) renderSessionView() string {
+	if m.selectedProc == nil {
+		return "Error: No process selected\n"
+	}
+
+	// Header with process info
+	headerTitle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("11")).
+		Render("Sessions for: " + truncatePath(m.selectedProc.WorkingDir, 50))
+
+	processInfo := fmt.Sprintf("PID: %d | CPU: %.1f%% | MEM: %.2f MB",
+		m.selectedProc.PID, m.selectedProc.CPUPercent, m.selectedProc.MemoryMB)
+	processStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	processText := processStyle.Render(processInfo)
+
+	headerLine := lipgloss.JoinVertical(
+		lipgloss.Left,
+		headerTitle,
+		processText,
+	)
+
+	// Check for errors
+	if m.sessionError != "" {
+		errorStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("1"))
+		errorText := errorStyle.Render("Error: " + m.sessionError)
+		return lipgloss.JoinVertical(lipgloss.Left, headerLine, "", errorText, "", footerHint())
+	}
+
+	// Show table or empty message
+	var content string
+	if len(m.sessions) == 0 {
+		content = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8")).
+			Render("No sessions found for this directory")
+	} else {
+		content = m.sessionTable.View()
+	}
+
+	footerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	helpText := "↑/↓: Navigate  |  enter: Open  |  esc: Back  |  q: Quit"
+	footer := footerStyle.Render(helpText)
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		headerLine,
+		"",
+		content,
+		"",
 		footer,
 	)
 }
@@ -78,7 +139,7 @@ func (m Model) renderWithTable() string {
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
 
-	helpText := "↑/↓: Navigate  |  r: Refresh  |  f: Toggle helpers  |  q: Quit"
+	helpText := "↑/↓: Navigate  |  enter: View sessions  |  r: Refresh  |  f: Toggle helpers  |  q: Quit"
 	footer := footerStyle.Render(helpText)
 
 	return lipgloss.JoinVertical(
@@ -89,4 +150,11 @@ func (m Model) renderWithTable() string {
 		"",
 		footer,
 	)
+}
+
+// footerHint returns a generic footer hint
+func footerHint() string {
+	footerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	return footerStyle.Render("Press 'esc' to go back")
 }

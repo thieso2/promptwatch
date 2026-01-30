@@ -38,3 +38,22 @@ func styleWarningMemory(mem string) string {
 	// This would be applied in view.go when rendering
 	return mem
 }
+
+// createSessionTable initializes the session table
+func createSessionTable() table.Model {
+	columns := []table.Column{
+		table.NewColumn("id", "SESSION ID", 40),
+		table.NewColumn("title", "TITLE", 40),
+		table.NewColumn("updated", "UPDATED", 16),
+	}
+
+	t := table.New(columns).
+		WithPageSize(20).
+		WithBaseStyle(
+			lipgloss.NewStyle().
+				Foreground(lipgloss.Color("255")),
+		).
+		Focused(true)
+
+	return t
+}
