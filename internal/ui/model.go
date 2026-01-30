@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/evertras/bubble-table/table"
 	"github.com/thies/claudewatch/internal/monitor"
 	"github.com/thies/claudewatch/internal/types"
@@ -112,10 +113,10 @@ type Model struct {
 	messageTable         table.Model
 	messages             []MessageRow
 	messageError         string
-	scrollOffset         int
-	messageFilter        MessageFilter // Filter for messages
-	filteredMessageCount int           // Count of currently filtered messages
-	selectedMessageIdx   int           // Index of selected message for detail view
+	messageViewport      viewport.Model // Viewport for message card scrolling
+	messageFilter        MessageFilter  // Filter for messages
+	filteredMessageCount int            // Count of currently filtered messages
+	selectedMessageIdx   int            // Index of selected message for detail view
 
 	// Terminal dimensions
 	termWidth  int
@@ -173,6 +174,11 @@ func NewModel(updateInterval time.Duration, showHelpers bool) Model {
 	m.projectsTable = createProjectsTableWithWidth(m.termWidth)
 	m.sessionTable = createSessionTableWithWidth(m.termWidth)
 	m.messageTable = createMessageTableWithWidth(m.termWidth)
+
+	// Initialize viewport for message cards
+	m.messageViewport = viewport.New(m.termWidth, m.termHeight-8)
+	m.messageViewport.YPosition = 0
+
 	return m
 }
 

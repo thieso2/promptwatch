@@ -140,7 +140,7 @@ func (m Model) renderSessionDetailView() string {
 		Foreground(lipgloss.Color("8")).
 		Render(stats.GetDetailedStats())
 
-	// Messages section - build components as array to maintain consistent spacing
+	// Messages section - use viewport for scrolling
 	var messagesComponents []string
 
 	if m.filteredMessageCount == 0 {
@@ -157,13 +157,15 @@ func (m Model) renderSessionDetailView() string {
 		statusStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("10"))
 		messagesComponents = append(messagesComponents, statusStyle.Render(m.messageError))
-		messagesComponents = append(messagesComponents, m.renderMessageCards())
+		// Show viewport with message cards
+		messagesComponents = append(messagesComponents, m.messageViewport.View())
 	} else if len(stats.MessageHistory) == 0 {
 		messagesComponents = append(messagesComponents, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("8")).
 			Render("No messages in this session"))
 	} else {
-		messagesComponents = append(messagesComponents, m.renderMessageCards())
+		// Show viewport with message cards
+		messagesComponents = append(messagesComponents, m.messageViewport.View())
 	}
 
 	messagesContent := lipgloss.JoinVertical(lipgloss.Left, messagesComponents...)
@@ -192,7 +194,7 @@ func (m Model) renderSessionDetailView() string {
 	// Footer
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
-	helpText := "↑/↓: Navigate  |  u: User prompts  |  a: Claude responses  |  b: Both  |  esc: Back  |  q: Quit"
+	helpText := "↑/↓: Scroll  |  PgUp/PgDn: Page  |  Home/End: Jump  |  u: User prompts  |  a: Claude responses  |  b: Both  |  esc: Back  |  q: Quit"
 	footer := footerStyle.Render(helpText)
 
 	headerComponents := []string{headerTitle, pathText}
@@ -550,7 +552,7 @@ func (m Model) renderMessageDetailView() string {
 	)
 }
 
-// renderMessageCards renders messages in a beautiful card format with token and cost information
+// renderMessageCards renders all messages as cards for the viewport
 func (m Model) renderMessageCards() string {
 	if len(m.messages) == 0 {
 		return "No messages to display"
@@ -558,44 +560,13 @@ func (m Model) renderMessageCards() string {
 
 	var cards []string
 
-	// Calculate visible range based on scroll offset
-	// Each message card takes about 4-5 lines, estimate 4 lines per card
-	pageHeight := m.termHeight - 20 // Reserve space for header and footer
-	linesPerCard := 4                // Approximate lines per card
-	cardsPerPage := pageHeight / linesPerCard
-	if cardsPerPage < 1 {
-		cardsPerPage = 1
-	}
-
-	startIdx := m.scrollOffset
-	endIdx := startIdx + cardsPerPage
-	if endIdx > len(m.messages) {
-		endIdx = len(m.messages)
-	}
-	if startIdx >= len(m.messages) {
-		startIdx = len(m.messages) - cardsPerPage
-		if startIdx < 0 {
-			startIdx = 0
-		}
-		endIdx = len(m.messages)
-	}
-
-	// Render visible cards
-	for i := startIdx; i < endIdx; i++ {
+	// Render all cards
+	for i := range m.messages {
 		card := renderMessageCard(m.messages[i])
 		cards = append(cards, card)
 	}
 
-	result := lipgloss.JoinVertical(lipgloss.Left, cards...)
-
-	// Add scroll position indicator
-	scrollStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("8"))
-	scrollInfo := fmt.Sprintf("↑/↓: Scroll  |  PgUp/PgDn: Page  |  Home/End: Jump  |  ↑: Message %d-%d of %d",
-		startIdx+1, endIdx, len(m.messages))
-	scrollIndicator := scrollStyle.Render(scrollInfo)
-
-	return lipgloss.JoinVertical(lipgloss.Left, result, "", scrollIndicator)
+	return lipgloss.JoinVertical(lipgloss.Left, cards...)
 }
 
 // renderMessageCard renders a single message as a card with token and cost info

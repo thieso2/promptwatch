@@ -39,7 +39,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.sessionStats = nil
 				m.messages = nil
 				m.messageError = ""
-				m.scrollOffset = 0 // Reset scroll offset when leaving session detail
+				m.messageViewport.GotoTop() // Reset viewport scroll
 				return m, nil
 			} else if m.viewMode == ViewSessions {
 				// Go back to the source (process or project view)
@@ -52,7 +52,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.sessions = nil
 				m.sessionError = ""
 				m.selectedSessionIdx = 0
-				m.scrollOffset = 0 // Reset scroll offset
 				return m, nil
 			}
 		case "r":
@@ -181,7 +180,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.messageError = ""
 			m.sessionStats = msg.stats
-			m.scrollOffset = 0 // Reset scroll when loading new session
+			m.messageViewport.GotoTop() // Reset viewport scroll when loading new session
 			m.updateMessageTable()
 		}
 		return m, nil
@@ -210,6 +209,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sessionTable = createSessionTableWithWidth(msg.Width).WithPageSize(msg.Height - 8)
 		// Message table: header (1) + time (1) + tool info (1) + blank (1) + blank (1) + scroll (1) + footer (1) = 7
 		m.messageTable = createMessageTableWithWidth(msg.Width).WithPageSize(msg.Height - 9)
+		// Resize message viewport (header ~8 lines + footer ~1 line = 9 lines reserved)
+		m.messageViewport.Width = msg.Width
+		m.messageViewport.Height = msg.Height - 9
 		// Rebuild tables with current data
 		m.updateTable()
 		m.updateProjectsTable()
@@ -284,41 +286,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			stats, ok := m.sessionStats.(*monitor.SessionStats)
 			if ok {
 				filteredMessages := m.getFilteredMessages(stats)
-				pageHeight := m.termHeight - 20 // Leave space for header and footer
-				maxScroll := len(m.messages) - pageHeight
-				if maxScroll < 0 {
-					maxScroll = 0
-				}
 
 				switch keyMsg.String() {
 				case "up":
 					// Scroll up in message cards
-					if m.scrollOffset > 0 {
-						m.scrollOffset--
-					}
+					m.messageViewport.LineUp(1)
 				case "down":
 					// Scroll down in message cards
-					if m.scrollOffset < maxScroll {
-						m.scrollOffset++
-					}
+					m.messageViewport.LineDown(1)
 				case "pgup":
 					// Page up
-					m.scrollOffset -= pageHeight
-					if m.scrollOffset < 0 {
-						m.scrollOffset = 0
-					}
+					m.messageViewport.HalfViewUp()
 				case "pgdn":
 					// Page down
-					m.scrollOffset += pageHeight
-					if m.scrollOffset > maxScroll {
-						m.scrollOffset = maxScroll
-					}
+					m.messageViewport.HalfViewDown()
 				case "home":
 					// Jump to top
-					m.scrollOffset = 0
+					m.messageViewport.GotoTop()
 				case "end":
 					// Jump to bottom
-					m.scrollOffset = maxScroll
+					m.messageViewport.GotoBottom()
 				case "enter":
 					// Open message detail view for selected message
 					if m.selectedMessageIdx >= 0 && m.selectedMessageIdx < len(filteredMessages) {
@@ -597,6 +584,10 @@ func (m *Model) updateMessageTable() {
 	}
 
 	m.messageTable = m.messageTable.WithRows(rows)
+
+	// Render message cards and set viewport content
+	cardsContent := m.renderMessageCards()
+	m.messageViewport.SetContent(cardsContent)
 }
 
 // calculateMessageCost calculates the cost for a single message
