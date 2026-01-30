@@ -39,6 +39,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.sessionStats = nil
 				m.messages = nil
 				m.messageError = ""
+				m.scrollOffset = 0 // Reset scroll offset when leaving session detail
 				return m, nil
 			} else if m.viewMode == ViewSessions {
 				// Go back to the source (process or project view)
@@ -51,6 +52,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.sessions = nil
 				m.sessionError = ""
 				m.selectedSessionIdx = 0
+				m.scrollOffset = 0 // Reset scroll offset
 				return m, nil
 			}
 		case "r":
@@ -179,6 +181,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.messageError = ""
 			m.sessionStats = msg.stats
+			m.scrollOffset = 0 // Reset scroll when loading new session
 			m.updateMessageTable()
 		}
 		return m, nil
@@ -276,23 +279,52 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	} else if m.viewMode == ViewSessionDetail {
 		m.messageTable, cmd = m.messageTable.Update(msg)
-		// Track arrow key presses for message selection with wrapping
+		// Handle scrolling and message navigation in session detail view
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			stats, ok := m.sessionStats.(*monitor.SessionStats)
 			if ok {
 				filteredMessages := m.getFilteredMessages(stats)
+				pageHeight := m.termHeight - 20 // Leave space for header and footer
+				maxScroll := len(m.messages) - pageHeight
+				if maxScroll < 0 {
+					maxScroll = 0
+				}
+
 				switch keyMsg.String() {
 				case "up":
-					if m.selectedMessageIdx > 0 {
-						m.selectedMessageIdx--
-					} else if len(filteredMessages) > 0 {
-						m.selectedMessageIdx = len(filteredMessages) - 1
+					// Scroll up in message cards
+					if m.scrollOffset > 0 {
+						m.scrollOffset--
 					}
 				case "down":
-					if m.selectedMessageIdx < len(filteredMessages)-1 {
-						m.selectedMessageIdx++
-					} else if len(filteredMessages) > 0 {
-						m.selectedMessageIdx = 0
+					// Scroll down in message cards
+					if m.scrollOffset < maxScroll {
+						m.scrollOffset++
+					}
+				case "pgup":
+					// Page up
+					m.scrollOffset -= pageHeight
+					if m.scrollOffset < 0 {
+						m.scrollOffset = 0
+					}
+				case "pgdn":
+					// Page down
+					m.scrollOffset += pageHeight
+					if m.scrollOffset > maxScroll {
+						m.scrollOffset = maxScroll
+					}
+				case "home":
+					// Jump to top
+					m.scrollOffset = 0
+				case "end":
+					// Jump to bottom
+					m.scrollOffset = maxScroll
+				case "enter":
+					// Open message detail view for selected message
+					if m.selectedMessageIdx >= 0 && m.selectedMessageIdx < len(filteredMessages) {
+						m.viewMode = ViewMessageDetail
+						m.detailMessage = &filteredMessages[m.selectedMessageIdx]
+						m.detailScrollOffset = 0
 					}
 				}
 			}

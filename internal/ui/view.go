@@ -558,12 +558,44 @@ func (m Model) renderMessageCards() string {
 
 	var cards []string
 
-	for _, msg := range m.messages {
-		card := renderMessageCard(msg)
+	// Calculate visible range based on scroll offset
+	// Each message card takes about 4-5 lines, estimate 4 lines per card
+	pageHeight := m.termHeight - 20 // Reserve space for header and footer
+	linesPerCard := 4                // Approximate lines per card
+	cardsPerPage := pageHeight / linesPerCard
+	if cardsPerPage < 1 {
+		cardsPerPage = 1
+	}
+
+	startIdx := m.scrollOffset
+	endIdx := startIdx + cardsPerPage
+	if endIdx > len(m.messages) {
+		endIdx = len(m.messages)
+	}
+	if startIdx >= len(m.messages) {
+		startIdx = len(m.messages) - cardsPerPage
+		if startIdx < 0 {
+			startIdx = 0
+		}
+		endIdx = len(m.messages)
+	}
+
+	// Render visible cards
+	for i := startIdx; i < endIdx; i++ {
+		card := renderMessageCard(m.messages[i])
 		cards = append(cards, card)
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, cards...)
+	result := lipgloss.JoinVertical(lipgloss.Left, cards...)
+
+	// Add scroll position indicator
+	scrollStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	scrollInfo := fmt.Sprintf("↑/↓: Scroll  |  PgUp/PgDn: Page  |  Home/End: Jump  |  ↑: Message %d-%d of %d",
+		startIdx+1, endIdx, len(m.messages))
+	scrollIndicator := scrollStyle.Render(scrollInfo)
+
+	return lipgloss.JoinVertical(lipgloss.Left, result, "", scrollIndicator)
 }
 
 // renderMessageCard renders a single message as a card with token and cost info
