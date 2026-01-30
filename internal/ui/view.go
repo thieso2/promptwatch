@@ -621,6 +621,46 @@ func (m Model) renderMessageDetailView() string {
 
 	// Word-wrap the content
 	var wrappedLines []string
+
+	// Add tool info if this is a tool call
+	if msg.ToolName != "" {
+		toolHeader := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("82")).
+			Bold(true).
+			Render("🔧 " + strings.ToUpper(msg.ToolName))
+		wrappedLines = append(wrappedLines, toolHeader)
+
+		if msg.ToolInput != "" {
+			wrappedLines = append(wrappedLines, "")
+			wrappedLines = append(wrappedLines, lipgloss.NewStyle().
+				Foreground(lipgloss.Color("11")).
+				Render("Arguments:"))
+
+			// Wrap tool input
+			words := strings.Fields(msg.ToolInput)
+			var currentLine string
+			for _, word := range words {
+				if currentLine == "" {
+					currentLine = word
+				} else if len(currentLine)+1+len(word) <= maxWidth {
+					currentLine += " " + word
+				} else {
+					wrappedLines = append(wrappedLines, currentLine)
+					currentLine = word
+				}
+			}
+			if currentLine != "" {
+				wrappedLines = append(wrappedLines, currentLine)
+			}
+		}
+
+		// Add separator before content
+		if content != "" {
+			wrappedLines = append(wrappedLines, "")
+		}
+	}
+
+	// Add regular message content
 	for _, paragraph := range strings.Split(content, "\n") {
 		// Handle empty lines
 		if paragraph == "" {
