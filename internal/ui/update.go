@@ -33,7 +33,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.messageError = ""
 				return m, nil
 			} else if m.viewMode == ViewSessions {
-				m.viewMode = ViewProcesses
+				// Go back to the source (process or project view)
+				if m.sessionSourceMode == ViewProjects {
+					m.viewMode = ViewProjects
+				} else {
+					m.viewMode = ViewProcesses
+				}
 				m.selectedProc = nil
 				m.sessions = nil
 				m.sessionError = ""
@@ -103,11 +108,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.viewMode == ViewProcesses && len(m.processes) > 0 && m.selectedProcIdx >= 0 && m.selectedProcIdx < len(m.processes) {
 				m.selectedProc = &m.processes[m.selectedProcIdx]
 				m.viewMode = ViewSessions
+				m.sessionSourceMode = ViewProcesses
 				m.selectedSessionIdx = 0 // Reset to first session
 				return m, m.loadSessions()
 			} else if m.viewMode == ViewProjects && len(m.projects) > 0 && m.selectedProjIdx >= 0 && m.selectedProjIdx < len(m.projects) {
 				// Load sessions for selected project
 				m.viewMode = ViewSessions
+				m.sessionSourceMode = ViewProjects
 				m.selectedSessionIdx = 0 // Reset to first session
 				return m, m.loadSessionsFromProject(m.projects[m.selectedProjIdx])
 			} else if m.viewMode == ViewSessions && len(m.sessions) > 0 && m.selectedSessionIdx >= 0 && m.selectedSessionIdx < len(m.sessions) {

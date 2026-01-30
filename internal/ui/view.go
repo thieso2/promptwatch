@@ -159,29 +159,44 @@ func (m Model) renderSessionDetailView() string {
 	)
 }
 
-// renderSessionView displays the session list for a selected process
+// renderSessionView displays the session list for a selected process or project
 func (m Model) renderSessionView() string {
-	if m.selectedProc == nil {
-		return "Error: No process selected\n"
+	var headerLine string
+
+	if m.selectedProc != nil {
+		// Viewing sessions from a process
+		headerTitle := lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("11")).
+			Render("Sessions for: " + truncatePath(m.selectedProc.WorkingDir, 50))
+
+		processInfo := fmt.Sprintf("PID: %d | CPU: %.1f%% | MEM: %.2f MB",
+			m.selectedProc.PID, m.selectedProc.CPUPercent, m.selectedProc.MemoryMB)
+		processStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8"))
+		processText := processStyle.Render(processInfo)
+
+		headerLine = lipgloss.JoinVertical(
+			lipgloss.Left,
+			headerTitle,
+			processText,
+		)
+	} else {
+		// Viewing sessions from a project
+		var projName string
+		if m.selectedProjIdx >= 0 && m.selectedProjIdx < len(m.projects) {
+			projName = m.projects[m.selectedProjIdx].DisplayName
+		} else {
+			projName = "Project"
+		}
+
+		headerTitle := lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("11")).
+			Render("Sessions for: " + truncatePath(projName, 50))
+
+		headerLine = headerTitle
 	}
-
-	// Header with process info
-	headerTitle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("11")).
-		Render("Sessions for: " + truncatePath(m.selectedProc.WorkingDir, 50))
-
-	processInfo := fmt.Sprintf("PID: %d | CPU: %.1f%% | MEM: %.2f MB",
-		m.selectedProc.PID, m.selectedProc.CPUPercent, m.selectedProc.MemoryMB)
-	processStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("8"))
-	processText := processStyle.Render(processInfo)
-
-	headerLine := lipgloss.JoinVertical(
-		lipgloss.Left,
-		headerTitle,
-		processText,
-	)
 
 	// Check for errors
 	if m.sessionError != "" {

@@ -83,6 +83,7 @@ type Model struct {
 	sessions         []SessionInfo
 	sessionError     string
 	selectedSessionIdx int
+	sessionSourceMode ViewMode // Track whether ViewSessions came from ViewProcesses or ViewProjects
 
 	// Session detail view
 	selectedSession      *SessionInfo
