@@ -332,8 +332,8 @@ func (m *Model) updateMessageTable() {
 		// Replace all newlines with spaces first
 		content := strings.ReplaceAll(msg.Content, "\n", " ")
 
-		// For tool results, prepend tool name if available
-		if msg.Type == "tool_result" && msg.ToolName != "" {
+		// For tool results and tool calls, prepend tool name if available
+		if msg.ToolName != "" && (msg.Type == "tool_result" || msg.Type == "assistant_response") {
 			toolInfo := fmt.Sprintf("[%s", msg.ToolName)
 			if msg.ToolInput != "" {
 				toolInput := strings.ReplaceAll(msg.ToolInput, "\n", " ")

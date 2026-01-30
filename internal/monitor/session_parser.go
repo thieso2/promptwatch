@@ -143,31 +143,91 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 					stats.AssistantMessages++
 				}
 
-				// Extract message content - can be string or array
-				var contentStr string
-				if content, ok := entry.Message.Content.(string); ok {
-					contentStr = content
-				} else if contentArr, ok := entry.Message.Content.([]interface{}); ok {
-					// For array content, try to extract text
+			// Extract message content - can be string or array
+			var contentStr string
+			var toolName string
+			var toolInput string
+			var msgType string
+
+			if content, ok := entry.Message.Content.(string); ok {
+				contentStr = content
+				msgType = "prompt"
+			} else if contentArr, ok := entry.Message.Content.([]interface{}); ok {
+				// For array content, extract based on item type
+				if entry.Message.Role == "user" {
+					// User messages in array form contain tool_result items
 					for _, item := range contentArr {
 						if itemMap, ok := item.(map[string]interface{}); ok {
-							if itemContent, ok := itemMap["content"].(string); ok {
-								contentStr = itemContent
-								break
+							if itemType, ok := itemMap["type"].(string); ok && itemType == "tool_result" {
+								if itemContent, ok := itemMap["content"].(string); ok {
+									contentStr = itemContent
+									msgType = "tool_result"
+									break
+								}
+							}
+						}
+					}
+				} else if entry.Message.Role == "assistant" {
+					// Assistant messages contain text, thinking, and tool_use items
+					for _, item := range contentArr {
+						if itemMap, ok := item.(map[string]interface{}); ok {
+							if itemType, ok := itemMap["type"].(string); ok {
+								switch itemType {
+								case "text":
+									if text, ok := itemMap["text"].(string); ok {
+										contentStr = text
+										msgType = "assistant_response"
+										break
+									}
+								case "tool_use":
+									// Extract tool information
+									if name, ok := itemMap["name"].(string); ok {
+										toolName = name
+										msgType = "assistant_response"
+										// Try to extract input
+										if input, ok := itemMap["input"]; ok {
+											if inputMap, ok := input.(map[string]interface{}); ok {
+												// Convert input map to JSON string for display
+												if inputBytes, err := json.Marshal(inputMap); err == nil {
+													toolInput = string(inputBytes)
+												}
+											}
+										}
+										// For tool_use, use the tool name as content if no text found yet
+										if contentStr == "" {
+											contentStr = fmt.Sprintf("Called tool: %s", toolName)
+										}
+									}
+								case "thinking":
+									// Skip thinking blocks
+									continue
+								}
 							}
 						}
 					}
 				}
-
-				if contentStr != "" {
-					msg := Message{
-						Role:      entry.Message.Role,
-						Content:   contentStr,
-						Timestamp: timestamp,
-					}
-					stats.MessageHistory = append(stats.MessageHistory, msg)
-				}
 			}
+
+			if contentStr != "" {
+				// Set default message type if not already set
+				if msgType == "" {
+					msgType = "assistant_response"
+					if entry.Message.Role == "user" {
+						msgType = "prompt"
+					}
+				}
+
+				msg := Message{
+					Role:      entry.Message.Role,
+					Content:   contentStr,
+					Timestamp: timestamp,
+					Type:      msgType,
+					ToolName:  toolName,
+					ToolInput: toolInput,
+				}
+				stats.MessageHistory = append(stats.MessageHistory, msg)
+			}
+	}
 
 		case "progress":
 			stats.ProgressEvents++
