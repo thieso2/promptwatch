@@ -191,10 +191,15 @@ func (m Model) renderSessionDetailView() string {
 		Foreground(filterColor)
 	filterText := filterStyle.Render(filterStr)
 
-	// Footer
+	// Footer with sort order indicator
+	sortIndicator := "oldest→newest"
+	if m.messageSortNewestFirst {
+		sortIndicator = "newest→oldest"
+	}
+
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
-	helpText := "↑/↓: Scroll  |  PgUp/PgDn: Page  |  Home/End: Jump  |  u: User prompts  |  a: Claude responses  |  b: Both  |  esc: Back  |  q: Quit"
+	helpText := "↑/↓: Scroll  |  PgUp/PgDn: Page  |  Home/End: Jump  |  u: User  |  a: Assistant  |  b: Both  |  s: Sort (" + sortIndicator + ")  |  esc: Back  |  q: Quit"
 	footer := footerStyle.Render(helpText)
 
 	headerComponents := []string{headerTitle, pathText}

@@ -128,6 +128,9 @@ type Model struct {
 
 	// Scroll tracking
 	lastMessageIdx       int // Track last selected message for stable scrolling
+
+	// Message sorting
+	messageSortNewestFirst bool // true = newest first, false = oldest first
 }
 
 

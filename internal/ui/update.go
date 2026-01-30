@@ -112,6 +112,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
+		case "s":
+			// Toggle sort order (newest/oldest first)
+			if m.viewMode == ViewSessionDetail {
+				m.messageSortNewestFirst = !m.messageSortNewestFirst
+				m.updateMessageTable()
+				sortOrder := "oldest first"
+				if m.messageSortNewestFirst {
+					sortOrder = "newest first"
+				}
+				m.messageError = fmt.Sprintf("Sorting %s", sortOrder)
+				return m, nil
+			}
 		case "enter":
 			// Open session view for selected process/project or session detail for selected session
 			if m.viewMode == ViewProcesses && len(m.processes) > 0 && m.selectedProcIdx >= 0 && m.selectedProcIdx < len(m.processes) {
@@ -527,6 +539,13 @@ func (m *Model) updateMessageTable() {
 			}
 		default:
 			filteredMessages = append(filteredMessages, msg)
+		}
+	}
+
+	// Reverse order if sorting newest first
+	if m.messageSortNewestFirst {
+		for i, j := 0, len(filteredMessages)-1; i < j; i, j = i+1, j-1 {
+			filteredMessages[i], filteredMessages[j] = filteredMessages[j], filteredMessages[i]
 		}
 	}
 
