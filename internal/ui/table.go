@@ -105,22 +105,29 @@ func createSessionTableWithWidth(width int) table.Model {
 	// Calculate responsive column widths
 	availableWidth := width - 6 // Reserve for borders and spacing
 
-	idWidth := (availableWidth * 30) / 100
-	titleWidth := (availableWidth * 50) / 100
-	updatedWidth := availableWidth - idWidth - titleWidth
+	// Column width distribution:
+	// Started: 14 chars (YYYY-MM-DD HH:MM)
+	// Duration: 8 chars (e.g., "12h34m" or "59m")
+	// Messages: 8 chars (message count)
+	// Interruptions: 5 chars (count)
+	// Remaining for title
+	startedWidth := 14
+	durationWidth := 8
+	messagesWidth := 8
+	interruptionsWidth := 5
+	titleWidth := availableWidth - startedWidth - durationWidth - messagesWidth - interruptionsWidth
 
-	// Ensure minimum widths
-	if idWidth < 30 {
-		idWidth = 30
-	}
-	if titleWidth < 30 {
-		titleWidth = 30
+	// Ensure minimum width for title
+	if titleWidth < 20 {
+		titleWidth = 20
 	}
 
 	columns := []table.Column{
-		table.NewColumn("id", "SESSION ID", idWidth),
+		table.NewColumn("started", "STARTED", startedWidth),
+		table.NewColumn("duration", "LENGTH", durationWidth),
+		table.NewColumn("messages", "MSGS", messagesWidth),
+		table.NewColumn("interruptions", "INT", interruptionsWidth),
 		table.NewColumn("title", "TITLE", titleWidth),
-		table.NewColumn("updated", "UPDATED", updatedWidth),
 	}
 
 	t := table.New(columns).

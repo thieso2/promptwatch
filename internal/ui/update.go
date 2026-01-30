@@ -386,9 +386,11 @@ func (m *Model) updateSessionTable() {
 
 	for i, session := range m.sessions {
 		rows[i] = table.NewRow(table.RowData{
-			"id":      truncatePath(session.ID, 36),
-			"title":   truncatePath(session.Title, 36),
-			"updated": session.Updated,
+			"started":       session.Started,
+			"duration":      session.Duration,
+			"messages":      fmt.Sprintf("%d", session.Messages),
+			"interruptions": fmt.Sprintf("%d", session.Interruptions),
+			"title":         truncatePath(session.Title, 36),
 		})
 	}
 

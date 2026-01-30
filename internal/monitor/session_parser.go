@@ -333,3 +333,84 @@ func (m Message) GetMessageSummary() string {
 
 	return fmt.Sprintf("[%s] %s", m.Role, content)
 }
+
+// SessionMetadata contains quick metadata about a session without full parsing
+type SessionMetadata struct {
+	Started       time.Time
+	Ended         time.Time
+	Duration      time.Duration
+	MessageCount  int
+	Interruptions int
+}
+
+// GetSessionMetadata extracts quick metadata from a session file
+// It reads the file to get first/last timestamps and count messages/gaps
+func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open session file: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	// Increase buffer size for large lines
+	buf := make([]byte, 512*1024) // 512KB initial
+	scanner.Buffer(buf, 10*1024*1024) // 10MB max
+
+	var firstTime, lastTime time.Time
+	var messageCount int
+	var lastMessageTime time.Time
+	var interruptions int
+	const interruptionGap = 1 * time.Hour // Consider >1 hour gap as interruption
+
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		var entry SessionEntry
+		if err := json.Unmarshal(line, &entry); err != nil {
+			continue
+		}
+
+		if entry.Timestamp == "" {
+			continue
+		}
+
+		// Parse timestamp
+		ts, err := time.Parse(time.RFC3339Nano, entry.Timestamp)
+		if err != nil {
+			continue
+		}
+
+		// Track first and last times
+		if firstTime.IsZero() {
+			firstTime = ts
+		}
+		lastTime = ts
+
+		// Count messages (user and assistant only, not system events)
+		if entry.Type == "user" || entry.Type == "assistant" {
+			messageCount++
+
+			// Detect interruptions (gaps > 1 hour between messages)
+			if !lastMessageTime.IsZero() && ts.Sub(lastMessageTime) > interruptionGap {
+				interruptions++
+			}
+			lastMessageTime = ts
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading session file: %w", err)
+	}
+
+	if firstTime.IsZero() {
+		return nil, fmt.Errorf("no valid timestamps found in session")
+	}
+
+	return &SessionMetadata{
+		Started:       firstTime,
+		Ended:         lastTime,
+		Duration:      lastTime.Sub(firstTime),
+		MessageCount:  messageCount,
+		Interruptions: interruptions,
+	}, nil
+}

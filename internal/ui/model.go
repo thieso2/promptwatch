@@ -15,10 +15,14 @@ import (
 
 // SessionInfo represents session information for display
 type SessionInfo struct {
-	ID      string
-	Title   string
-	Updated string
-	Path    string
+	ID           string
+	Title        string
+	Updated      string
+	Path         string
+	Started      string    // When the session started
+	Duration     string    // Total session duration
+	Messages     int       // Total message count
+	Interruptions int      // Number of resumptions/interruptions
 }
 
 // MessageRow represents a message for display in the message table
@@ -198,11 +202,34 @@ func (m Model) loadSessions() tea.Cmd {
 		// Convert to SessionInfo for display
 		sessionInfos := make([]SessionInfo, len(sessions))
 		for i, s := range sessions {
+			// Extract metadata from session file
+			metadata, err := monitor.GetSessionMetadata(s.FilePath)
+			var startedStr, durationStr string
+			var msgCount, interruptions int
+
+			if err == nil {
+				startedStr = metadata.Started.Format("2006-01-02 15:04")
+				// Format duration nicely
+				hours := int(metadata.Duration.Hours())
+				minutes := int(metadata.Duration.Minutes()) % 60
+				if hours > 0 {
+					durationStr = fmt.Sprintf("%dh%dm", hours, minutes)
+				} else {
+					durationStr = fmt.Sprintf("%dm", minutes)
+				}
+				msgCount = metadata.MessageCount
+				interruptions = metadata.Interruptions
+			}
+
 			sessionInfos[i] = SessionInfo{
-				ID:      s.ID,
-				Title:   s.GetSessionInfo(),
-				Updated: s.GetSessionTime(),
-				Path:    s.FilePath,
+				ID:            s.ID,
+				Title:         s.GetSessionInfo(),
+				Updated:       s.GetSessionTime(),
+				Path:          s.FilePath,
+				Started:       startedStr,
+				Duration:      durationStr,
+				Messages:      msgCount,
+				Interruptions: interruptions,
 			}
 		}
 
@@ -257,11 +284,34 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 			// Use filename without extension as ID
 			sessionID := strings.TrimSuffix(entry.Name(), ".jsonl")
 
+			// Extract metadata from session file
+			metadata, err := monitor.GetSessionMetadata(sessionPath)
+			var startedStr, durationStr string
+			var msgCount, interruptions int
+
+			if err == nil {
+				startedStr = metadata.Started.Format("2006-01-02 15:04")
+				// Format duration nicely
+				hours := int(metadata.Duration.Hours())
+				minutes := int(metadata.Duration.Minutes()) % 60
+				if hours > 0 {
+					durationStr = fmt.Sprintf("%dh%dm", hours, minutes)
+				} else {
+					durationStr = fmt.Sprintf("%dm", minutes)
+				}
+				msgCount = metadata.MessageCount
+				interruptions = metadata.Interruptions
+			}
+
 			sessions = append(sessions, SessionInfo{
-				ID:      sessionID,
-				Title:   sessionID, // Use ID as title for project sessions
-				Updated: info.ModTime().Format("2006-01-02 15:04"),
-				Path:    sessionPath,
+				ID:            sessionID,
+				Title:         sessionID, // Use ID as title for project sessions
+				Updated:       info.ModTime().Format("2006-01-02 15:04"),
+				Path:          sessionPath,
+				Started:       startedStr,
+				Duration:      durationStr,
+				Messages:      msgCount,
+				Interruptions: interruptions,
 			})
 		}
 
