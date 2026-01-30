@@ -156,38 +156,34 @@ type projectsMsg struct {
 	err      error
 }
 
-// scrollToSelection scrolls the viewport to keep the selected message visible
+// scrollToSelection scrolls the viewport to center the selected message on screen
 func (m *Model) scrollToSelection() {
 	if len(m.messages) == 0 || m.selectedMessageIdx < 0 {
 		return
 	}
 
 	// Estimate lines per message (header + content lines + metrics + separator)
-	// This is approximate but helps keep selection visible
-	avgLinesPerMessage := 8
+	// Using slightly higher estimate for safety
+	avgLinesPerMessage := 9
 
-	// Calculate approximate viewport position of selected message
+	// Calculate approximate line number where selected message starts
 	selectedMessageLine := m.selectedMessageIdx * avgLinesPerMessage
 
-	// Scroll to show the selected message roughly in the middle of viewport
-	viewportMidpoint := m.messageViewport.Height / 2
-	targetScrollPosition := selectedMessageLine - viewportMidpoint
+	// Position selected message in center of viewport
+	// Using Height / 2 to center it properly
+	centerOffset := m.messageViewport.Height / 2
+	targetScrollPosition := selectedMessageLine - centerOffset
 
+	// Clamp to valid range
 	if targetScrollPosition < 0 {
 		targetScrollPosition = 0
 	}
 
-	// Set scroll position by moving to target
-	currentOffset := m.messageViewport.YOffset
-
-	if targetScrollPosition > currentOffset {
-		// Need to scroll down
-		linesToScroll := targetScrollPosition - currentOffset
-		m.messageViewport.LineDown(linesToScroll)
-	} else if targetScrollPosition < currentOffset {
-		// Need to scroll up
-		linesToScroll := currentOffset - targetScrollPosition
-		m.messageViewport.LineUp(linesToScroll)
+	// Directly set scroll position using GotoTop + LineDown
+	// This is more reliable than calculating differences
+	m.messageViewport.GotoTop()
+	if targetScrollPosition > 0 {
+		m.messageViewport.LineDown(targetScrollPosition)
 	}
 }
 
