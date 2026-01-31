@@ -209,7 +209,7 @@ func (m Model) renderSessionDetailView() string {
 	if firstPromptText != "" {
 		headerComponents = append(headerComponents, firstPromptText)
 	}
-	headerComponents = append(headerComponents, "", statsText, detailedStats, "", "Messages:" + filterText)
+	headerComponents = append(headerComponents, "", statsText, detailedStats, "", "Messages:"+filterText)
 
 	allComponents := append(headerComponents, messagesContent, "", footer)
 

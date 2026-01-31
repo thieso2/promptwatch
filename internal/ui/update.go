@@ -13,10 +13,10 @@ import (
 
 // Cost constants based on Claude API pricing
 const (
-	InputTokenCost           = 3.0 / 1_000_000      // $3 per 1M input tokens
-	CacheCreationTokenCost   = 3.0 / 1_000_000      // $3 per 1M cache creation tokens
-	CacheReadTokenCost       = 0.30 / 1_000_000     // $0.30 per 1M cache read tokens
-	OutputTokenCost          = 15.0 / 1_000_000     // $15 per 1M output tokens
+	InputTokenCost         = 3.0 / 1_000_000  // $3 per 1M input tokens
+	CacheCreationTokenCost = 3.0 / 1_000_000  // $3 per 1M cache creation tokens
+	CacheReadTokenCost     = 0.30 / 1_000_000 // $0.30 per 1M cache read tokens
+	OutputTokenCost        = 15.0 / 1_000_000 // $15 per 1M output tokens
 )
 
 // Update handles incoming messages and updates the model
@@ -193,8 +193,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.messageError = ""
 			m.sessionStats = msg.stats
-			m.selectedMessageIdx = 0 // Reset cursor to first message
-			m.lastMessageIdx = 0 // Reset scroll tracking
+			m.selectedMessageIdx = 0    // Reset cursor to first message
+			m.lastMessageIdx = 0        // Reset scroll tracking
 			m.messageViewport.GotoTop() // Reset viewport scroll when loading new session
 			m.updateMessageTable()
 		}
@@ -496,13 +496,13 @@ func (m *Model) updateSessionTable() {
 		}
 
 		rows[i] = table.NewRow(table.RowData{
-			"version":       versionStr,
-			"gitbranch":     gitStr,
-			"lastmsgtime":   lastMsgTimeStr,
-			"tokens":        tokensStr,
-			"started":       session.Started,
-			"duration":      session.Duration,
-			"lastmessage":   lastMsgPreview,
+			"version":     versionStr,
+			"gitbranch":   gitStr,
+			"lastmsgtime": lastMsgTimeStr,
+			"tokens":      tokensStr,
+			"started":     session.Started,
+			"duration":    session.Duration,
+			"lastmessage": lastMsgPreview,
 		})
 	}
 
@@ -524,9 +524,9 @@ func (m *Model) updateProjectsTable() {
 		}
 
 		rows[i] = table.NewRow(table.RowData{
-			"name":      truncatePath(displayName, 50),
-			"modified":  modifiedStr,
-			"sessions":  sessionsStr,
+			"name":     truncatePath(displayName, 50),
+			"modified": modifiedStr,
+			"sessions": sessionsStr,
 		})
 	}
 

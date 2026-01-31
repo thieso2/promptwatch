@@ -95,4 +95,3 @@ func TruncatePath(path string, maxLen int) string {
 
 	return path[:keepLeft] + "..." + path[len(path)-keepRight:]
 }
-

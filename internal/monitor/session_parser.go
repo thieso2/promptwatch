@@ -37,40 +37,40 @@ import (
 
 // SessionEntry represents a single entry in a session JSONL file
 type SessionEntry struct {
-	Type        string                 `json:"type"`
-	Timestamp   string                 `json:"timestamp"`
-	Version     string                 `json:"version"`
-	GitBranch   string                 `json:"gitBranch"`
-	IsSidechain bool                   `json:"isSidechain"`
+	Type        string `json:"type"`
+	Timestamp   string `json:"timestamp"`
+	Version     string `json:"version"`
+	GitBranch   string `json:"gitBranch"`
+	IsSidechain bool   `json:"isSidechain"`
 	Message     *struct {
-		Role    string        `json:"role"`
-		Content interface{}   `json:"content"` // Can be string or array
+		Role    string      `json:"role"`
+		Content interface{} `json:"content"` // Can be string or array
 	} `json:"message"`
 	Data map[string]interface{} `json:"data"`
 }
 
 // Message represents a user message or response
 type Message struct {
-	Role              string
-	Content           string
-	Timestamp         time.Time
-	Type              string // "prompt", "assistant_response", or "tool_result"
-	ToolName          string // Name of tool that was called
-	ToolInput         string // Input passed to tool
-	Model             string // Claude model used (assistant messages only)
-	InputTokens       int    // Number of input tokens (assistant messages)
-	OutputTokens      int    // Number of output tokens (assistant messages)
-	CacheCreation     int    // Tokens used for cache creation
-	CacheRead         int    // Tokens read from cache
+	Role          string
+	Content       string
+	Timestamp     time.Time
+	Type          string // "prompt", "assistant_response", or "tool_result"
+	ToolName      string // Name of tool that was called
+	ToolInput     string // Input passed to tool
+	Model         string // Claude model used (assistant messages only)
+	InputTokens   int    // Number of input tokens (assistant messages)
+	OutputTokens  int    // Number of output tokens (assistant messages)
+	CacheCreation int    // Tokens used for cache creation
+	CacheRead     int    // Tokens read from cache
 	// Additional session metadata
-	UUID              string // Unique message identifier
-	WorkingDir        string // Current working directory when message was sent
-	SessionID         string // Session ID
-	Version           string // Claude version
-	GitBranch         string // Git branch context
-	UserType          string // Type of user (e.g., "external")
-	ParentUUID        string // Parent message UUID (for branching)
-	IsSidechain       bool   // Whether this is a side/branch conversation
+	UUID        string // Unique message identifier
+	WorkingDir  string // Current working directory when message was sent
+	SessionID   string // Session ID
+	Version     string // Claude version
+	GitBranch   string // Git branch context
+	UserType    string // Type of user (e.g., "external")
+	ParentUUID  string // Parent message UUID (for branching)
+	IsSidechain bool   // Whether this is a side/branch conversation
 }
 
 // SessionStats contains aggregated session statistics
@@ -107,7 +107,7 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 
 	scanner := bufio.NewScanner(file)
 	// Increase buffer size for large JSONL lines (some can be > 64KB)
-	buf := make([]byte, 0, 512*1024) // 512KB buffer
+	buf := make([]byte, 0, 512*1024)  // 512KB buffer
 	scanner.Buffer(buf, 10*1024*1024) // 10MB max token size
 	lineNum := 0
 
@@ -160,151 +160,151 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 					stats.AssistantMessages++
 				}
 
-			// Extract message content - can be string or array
-			var contentStr string
-			var toolName string
-			var toolInput string
-			var msgType string
-			var model string
-			var inputTokens, outputTokens, cacheCreation, cacheRead int
+				// Extract message content - can be string or array
+				var contentStr string
+				var toolName string
+				var toolInput string
+				var msgType string
+				var model string
+				var inputTokens, outputTokens, cacheCreation, cacheRead int
 
-			// For assistant messages, try to extract token usage from full JSON
-			if entry.Message.Role == "assistant" {
-				var detailedEntry struct {
-					Message struct {
-						Model string `json:"model"`
-						Usage struct {
-							InputTokens               int `json:"input_tokens"`
-							CacheCreationInputTokens  int `json:"cache_creation_input_tokens"`
-							CacheReadInputTokens      int `json:"cache_read_input_tokens"`
-							OutputTokens              int `json:"output_tokens"`
-						} `json:"usage"`
-					} `json:"message"`
-				}
-				if err := json.Unmarshal(scanner.Bytes(), &detailedEntry); err == nil {
-					model = detailedEntry.Message.Model
-					inputTokens = detailedEntry.Message.Usage.InputTokens
-					outputTokens = detailedEntry.Message.Usage.OutputTokens
-					cacheCreation = detailedEntry.Message.Usage.CacheCreationInputTokens
-					cacheRead = detailedEntry.Message.Usage.CacheReadInputTokens
-				}
-			}
-
-			if content, ok := entry.Message.Content.(string); ok {
-				contentStr = content
-				msgType = "prompt"
-			} else if contentArr, ok := entry.Message.Content.([]interface{}); ok {
-				// For array content, extract based on item type
-				if entry.Message.Role == "user" {
-					// User messages in array form contain tool_result items
-					for _, item := range contentArr {
-						if itemMap, ok := item.(map[string]interface{}); ok {
-							if itemType, ok := itemMap["type"].(string); ok && itemType == "tool_result" {
-								if itemContent, ok := itemMap["content"].(string); ok {
-									contentStr = itemContent
-									msgType = "tool_result"
-									break
-								}
-							}
-						}
+				// For assistant messages, try to extract token usage from full JSON
+				if entry.Message.Role == "assistant" {
+					var detailedEntry struct {
+						Message struct {
+							Model string `json:"model"`
+							Usage struct {
+								InputTokens              int `json:"input_tokens"`
+								CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+								CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+								OutputTokens             int `json:"output_tokens"`
+							} `json:"usage"`
+						} `json:"message"`
 					}
-				} else if entry.Message.Role == "assistant" {
-					// Assistant messages contain text, thinking, and tool_use items
-					for _, item := range contentArr {
-						if itemMap, ok := item.(map[string]interface{}); ok {
-							if itemType, ok := itemMap["type"].(string); ok {
-								switch itemType {
-								case "text":
-									if text, ok := itemMap["text"].(string); ok {
-										contentStr = text
-										msgType = "assistant_response"
+					if err := json.Unmarshal(scanner.Bytes(), &detailedEntry); err == nil {
+						model = detailedEntry.Message.Model
+						inputTokens = detailedEntry.Message.Usage.InputTokens
+						outputTokens = detailedEntry.Message.Usage.OutputTokens
+						cacheCreation = detailedEntry.Message.Usage.CacheCreationInputTokens
+						cacheRead = detailedEntry.Message.Usage.CacheReadInputTokens
+					}
+				}
+
+				if content, ok := entry.Message.Content.(string); ok {
+					contentStr = content
+					msgType = "prompt"
+				} else if contentArr, ok := entry.Message.Content.([]interface{}); ok {
+					// For array content, extract based on item type
+					if entry.Message.Role == "user" {
+						// User messages in array form contain tool_result items
+						for _, item := range contentArr {
+							if itemMap, ok := item.(map[string]interface{}); ok {
+								if itemType, ok := itemMap["type"].(string); ok && itemType == "tool_result" {
+									if itemContent, ok := itemMap["content"].(string); ok {
+										contentStr = itemContent
+										msgType = "tool_result"
 										break
 									}
-								case "tool_use":
-									// Extract tool information
-									if name, ok := itemMap["name"].(string); ok {
-										toolName = name
-										msgType = "assistant_response"
-										// Try to extract input
-										if input, ok := itemMap["input"]; ok {
-											if inputMap, ok := input.(map[string]interface{}); ok {
-												// Convert input map to JSON string for display
-												if inputBytes, err := json.Marshal(inputMap); err == nil {
-													toolInput = string(inputBytes)
+								}
+							}
+						}
+					} else if entry.Message.Role == "assistant" {
+						// Assistant messages contain text, thinking, and tool_use items
+						for _, item := range contentArr {
+							if itemMap, ok := item.(map[string]interface{}); ok {
+								if itemType, ok := itemMap["type"].(string); ok {
+									switch itemType {
+									case "text":
+										if text, ok := itemMap["text"].(string); ok {
+											contentStr = text
+											msgType = "assistant_response"
+											break
+										}
+									case "tool_use":
+										// Extract tool information
+										if name, ok := itemMap["name"].(string); ok {
+											toolName = name
+											msgType = "assistant_response"
+											// Try to extract input
+											if input, ok := itemMap["input"]; ok {
+												if inputMap, ok := input.(map[string]interface{}); ok {
+													// Convert input map to JSON string for display
+													if inputBytes, err := json.Marshal(inputMap); err == nil {
+														toolInput = string(inputBytes)
+													}
 												}
 											}
+											// For tool_use, use the tool name as content if no text found yet
+											if contentStr == "" {
+												contentStr = fmt.Sprintf("Called tool: %s", toolName)
+											}
 										}
-										// For tool_use, use the tool name as content if no text found yet
-										if contentStr == "" {
-											contentStr = fmt.Sprintf("Called tool: %s", toolName)
-										}
+									case "thinking":
+										// Skip thinking blocks
+										continue
 									}
-								case "thinking":
-									// Skip thinking blocks
-									continue
 								}
 							}
 						}
 					}
 				}
-			}
 
-			if contentStr != "" {
-				// Set default message type if not already set
-				if msgType == "" {
-					msgType = "assistant_response"
-					if entry.Message.Role == "user" {
-						msgType = "prompt"
+				if contentStr != "" {
+					// Set default message type if not already set
+					if msgType == "" {
+						msgType = "assistant_response"
+						if entry.Message.Role == "user" {
+							msgType = "prompt"
+						}
 					}
-				}
 
-				// Extract additional metadata from entry
-				uuid := ""
-				workingDir := ""
-				sessionID := ""
-				userType := ""
-				parentUUID := ""
-				if u, ok := rawData["uuid"].(string); ok {
-					uuid = u
-				}
-				if cwd, ok := rawData["cwd"].(string); ok {
-					workingDir = cwd
-				}
-				if sid, ok := rawData["sessionId"].(string); ok {
-					sessionID = sid
-				}
-				if ut, ok := rawData["userType"].(string); ok {
-					userType = ut
-				}
-				if pu, ok := rawData["parentUuid"].(string); ok {
-					parentUUID = pu
-				}
+					// Extract additional metadata from entry
+					uuid := ""
+					workingDir := ""
+					sessionID := ""
+					userType := ""
+					parentUUID := ""
+					if u, ok := rawData["uuid"].(string); ok {
+						uuid = u
+					}
+					if cwd, ok := rawData["cwd"].(string); ok {
+						workingDir = cwd
+					}
+					if sid, ok := rawData["sessionId"].(string); ok {
+						sessionID = sid
+					}
+					if ut, ok := rawData["userType"].(string); ok {
+						userType = ut
+					}
+					if pu, ok := rawData["parentUuid"].(string); ok {
+						parentUUID = pu
+					}
 
-				msg := Message{
-					Role:          entry.Message.Role,
-					Content:       contentStr,
-					Timestamp:     timestamp,
-					Type:          msgType,
-					ToolName:      toolName,
-					ToolInput:     toolInput,
-					Model:         model,
-					InputTokens:   inputTokens,
-					OutputTokens:  outputTokens,
-					CacheCreation: cacheCreation,
-					CacheRead:     cacheRead,
-					// Additional metadata
-					UUID:        uuid,
-					WorkingDir:  workingDir,
-					SessionID:   sessionID,
-					Version:     entry.Version,
-					GitBranch:   entry.GitBranch,
-					UserType:    userType,
-					ParentUUID:  parentUUID,
-					IsSidechain: entry.IsSidechain,
+					msg := Message{
+						Role:          entry.Message.Role,
+						Content:       contentStr,
+						Timestamp:     timestamp,
+						Type:          msgType,
+						ToolName:      toolName,
+						ToolInput:     toolInput,
+						Model:         model,
+						InputTokens:   inputTokens,
+						OutputTokens:  outputTokens,
+						CacheCreation: cacheCreation,
+						CacheRead:     cacheRead,
+						// Additional metadata
+						UUID:        uuid,
+						WorkingDir:  workingDir,
+						SessionID:   sessionID,
+						Version:     entry.Version,
+						GitBranch:   entry.GitBranch,
+						UserType:    userType,
+						ParentUUID:  parentUUID,
+						IsSidechain: entry.IsSidechain,
+					}
+					stats.MessageHistory = append(stats.MessageHistory, msg)
 				}
-				stats.MessageHistory = append(stats.MessageHistory, msg)
 			}
-	}
 
 		case "progress":
 			stats.ProgressEvents++
@@ -413,12 +413,12 @@ func (m Message) GetMessageSummary() string {
 
 // TokenUsage represents token usage information from an API response
 type TokenUsage struct {
-	InputTokens                 int `json:"input_tokens"`
-	CacheCreationInputTokens    int `json:"cache_creation_input_tokens"`
-	CacheReadInputTokens        int `json:"cache_read_input_tokens"`
-	OutputTokens                int `json:"output_tokens"`
-	CacheCreationEphemeral5m    int `json:"ephemeral_5m_input_tokens,omitempty"`
-	CacheCreationEphemeral1h    int `json:"ephemeral_1h_input_tokens,omitempty"`
+	InputTokens              int `json:"input_tokens"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+	OutputTokens             int `json:"output_tokens"`
+	CacheCreationEphemeral5m int `json:"ephemeral_5m_input_tokens,omitempty"`
+	CacheCreationEphemeral1h int `json:"ephemeral_1h_input_tokens,omitempty"`
 }
 
 // SessionMetadata contains quick metadata about a session without full parsing
@@ -453,9 +453,9 @@ type SessionIndexEntry struct {
 
 // SessionIndex represents the structure of sessions-index.json
 type SessionIndex struct {
-	Version      int                  `json:"version"`
-	Entries      []SessionIndexEntry  `json:"entries"`
-	OriginalPath string               `json:"originalPath"`
+	Version      int                 `json:"version"`
+	Entries      []SessionIndexEntry `json:"entries"`
+	OriginalPath string              `json:"originalPath"`
 }
 
 // GetSessionMetadata extracts quick metadata from a session file
@@ -469,7 +469,7 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 
 	scanner := bufio.NewScanner(file)
 	// Increase buffer size for large lines
-	buf := make([]byte, 512*1024) // 512KB initial
+	buf := make([]byte, 512*1024)     // 512KB initial
 	scanner.Buffer(buf, 10*1024*1024) // 10MB max
 
 	var firstTime, lastTime time.Time
@@ -502,8 +502,8 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 		// Track first and last times
 		if firstTime.IsZero() {
 			firstTime = ts
-			version = entry.Version // Get version from first entry
-			gitBranch = entry.GitBranch // Get git branch from first entry
+			version = entry.Version         // Get version from first entry
+			gitBranch = entry.GitBranch     // Get git branch from first entry
 			isSidechain = entry.IsSidechain // Get sidechain flag from first entry
 		}
 		lastTime = ts

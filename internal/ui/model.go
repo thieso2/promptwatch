@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/evertras/bubble-table/table"
 	"github.com/thieso2/promptwatch/internal/monitor"
 	"github.com/thieso2/promptwatch/internal/types"
@@ -16,42 +16,42 @@ import (
 
 // SessionInfo represents session information for display
 type SessionInfo struct {
-	ID            string
-	Title         string
-	Updated       string
-	Path          string
-	Started       string    // When the session started
-	Duration      string    // Total session duration
-	UserPrompts   int       // Number of user prompts
-	Interruptions int       // Number of resumptions/interruptions
-	GitBranch     string    // Git branch when session was created
-	IsSidechain   bool      // Whether this is a side/branching conversation
-	Version       string    // Claude version (e.g., "2.1.1")
-	FirstPrompt   string    // The initial prompt that started the session
-	TotalTokens     int       // Total tokens used in session (input + output)
-	InputTokens     int       // Total input tokens
-	OutputTokens    int       // Total output tokens
-	LastMessage     string    // Last message in the session
-	LastMessageTime int64     // Unix timestamp of last message
+	ID              string
+	Title           string
+	Updated         string
+	Path            string
+	Started         string // When the session started
+	Duration        string // Total session duration
+	UserPrompts     int    // Number of user prompts
+	Interruptions   int    // Number of resumptions/interruptions
+	GitBranch       string // Git branch when session was created
+	IsSidechain     bool   // Whether this is a side/branching conversation
+	Version         string // Claude version (e.g., "2.1.1")
+	FirstPrompt     string // The initial prompt that started the session
+	TotalTokens     int    // Total tokens used in session (input + output)
+	InputTokens     int    // Total input tokens
+	OutputTokens    int    // Total output tokens
+	LastMessage     string // Last message in the session
+	LastMessageTime int64  // Unix timestamp of last message
 }
 
 // MessageRow represents a message for display in the message card view
 type MessageRow struct {
-	Index              int       // Message sequence number
-	Role               string    // "user" or "assistant"
-	Content            string    // Message text
-	Time               string    // Timestamp (ISO8601)
-	Model              string    // Claude model used (assistant only)
-	InputTokens        int       // Input tokens (assistant only)
-	OutputTokens       int       // Output tokens (assistant only)
-	CacheCreation      int       // Tokens written to cache (assistant only)
-	CacheRead          int       // Tokens read from cache (assistant only)
-	Cost               float64   // Estimated cost in USD
-	RelativeTime       string    // Time since previous message (e.g., "+2s")
-	InputOutputRatio   float64   // Input tokens / Output tokens
-	OutputPercentage   int       // Output tokens as % of total (0-100)
-	CacheSavings       float64   // Estimated savings from cache hits (USD)
-	UUID               string    // Unique message identifier
+	Index            int     // Message sequence number
+	Role             string  // "user" or "assistant"
+	Content          string  // Message text
+	Time             string  // Timestamp (ISO8601)
+	Model            string  // Claude model used (assistant only)
+	InputTokens      int     // Input tokens (assistant only)
+	OutputTokens     int     // Output tokens (assistant only)
+	CacheCreation    int     // Tokens written to cache (assistant only)
+	CacheRead        int     // Tokens read from cache (assistant only)
+	Cost             float64 // Estimated cost in USD
+	RelativeTime     string  // Time since previous message (e.g., "+2s")
+	InputOutputRatio float64 // Input tokens / Output tokens
+	OutputPercentage int     // Output tokens as % of total (0-100)
+	CacheSavings     float64 // Estimated savings from cache hits (USD)
+	UUID             string  // Unique message identifier
 }
 
 // ViewMode represents the current view being displayed
@@ -67,11 +67,11 @@ const (
 
 // ProjectDir represents a project directory with metadata
 type ProjectDir struct {
-	Name          string
-	Path          string
-	DisplayName   string // Human-readable project name
-	Modified      time.Time
-	Sessions      int // Count of session files
+	Name        string
+	Path        string
+	DisplayName string // Human-readable project name
+	Modified    time.Time
+	Sessions    int // Count of session files
 }
 
 type MessageFilter int
@@ -95,20 +95,20 @@ type Model struct {
 	sortAscending  bool
 
 	// Projects view
-	projectsTable    table.Model
-	projects         []ProjectDir
-	selectedProjIdx  int
-	projectsError    string
+	projectsTable   table.Model
+	projects        []ProjectDir
+	selectedProjIdx int
+	projectsError   string
 
 	// Session view
-	viewMode         ViewMode
-	selectedProcIdx  int
-	selectedProc     *types.ClaudeProcess
-	sessionTable     table.Model
-	sessions         []SessionInfo
-	sessionError     string
+	viewMode           ViewMode
+	selectedProcIdx    int
+	selectedProc       *types.ClaudeProcess
+	sessionTable       table.Model
+	sessions           []SessionInfo
+	sessionError       string
 	selectedSessionIdx int
-	sessionSourceMode ViewMode // Track whether ViewSessions came from ViewProcesses or ViewProjects
+	sessionSourceMode  ViewMode // Track whether ViewSessions came from ViewProcesses or ViewProjects
 
 	// Session detail view
 	selectedSession      *SessionInfo
@@ -126,17 +126,15 @@ type Model struct {
 	termHeight int
 
 	// Message detail view
-	detailMessage        *monitor.Message // Full message being displayed
-	detailScrollOffset   int              // Scroll position in message detail
+	detailMessage      *monitor.Message // Full message being displayed
+	detailScrollOffset int              // Scroll position in message detail
 
 	// Scroll tracking
-	lastMessageIdx       int // Track last selected message for stable scrolling
+	lastMessageIdx int // Track last selected message for stable scrolling
 
 	// Message sorting
 	messageSortNewestFirst bool // true = newest first, false = oldest first
 }
-
-
 
 // tickMsg is used for periodic updates
 type tickMsg time.Time
@@ -213,9 +211,9 @@ func NewModel(updateInterval time.Duration, showHelpers bool) Model {
 		viewMode:               ViewProcesses,
 		selectedProcIdx:        0,
 		messageFilter:          FilterAll,
-		messageSortNewestFirst: true,  // Default: show newest messages first
-		termWidth:              80,    // Default terminal width
-		termHeight:             24,    // Default terminal height
+		messageSortNewestFirst: true, // Default: show newest messages first
+		termWidth:              80,   // Default terminal width
+		termHeight:             24,   // Default terminal height
 	}
 
 	m.table = createTableWithWidth(m.termWidth)
@@ -421,39 +419,38 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 				outputTokens = metadata.TotalOutputTokens
 			}
 
-
-		// Extract last message info
-		var lastMessage string
-		var lastMessageTime int64
-		if stats, err := monitor.ParseSessionFile(sessionPath); err == nil && len(stats.MessageHistory) > 0 {
-			lastMsg := stats.MessageHistory[len(stats.MessageHistory)-1]
-			lastMessageTime = lastMsg.Timestamp.Unix()
-			content := lastMsg.Content
-			if len(content) > 100 {
-				content = content[:97] + "…"
+			// Extract last message info
+			var lastMessage string
+			var lastMessageTime int64
+			if stats, err := monitor.ParseSessionFile(sessionPath); err == nil && len(stats.MessageHistory) > 0 {
+				lastMsg := stats.MessageHistory[len(stats.MessageHistory)-1]
+				lastMessageTime = lastMsg.Timestamp.Unix()
+				content := lastMsg.Content
+				if len(content) > 100 {
+					content = content[:97] + "…"
+				}
+				content = strings.Join(strings.Fields(content), " ")
+				lastMessage = content
 			}
-			content = strings.Join(strings.Fields(content), " ")
-			lastMessage = content
-		}
 
 			sessions = append(sessions, SessionInfo{
-				ID:            sessionID,
-				Title:         sessionID, // Use ID as title for project sessions
-				Updated:       info.ModTime().Format("2006-01-02 15:04"),
-				Path:          sessionPath,
-				Started:       startedStr,
-				Duration:      durationStr,
-				UserPrompts:   userPrompts,
-				Interruptions: interruptions,
-				GitBranch:     gitBranch,
-				IsSidechain:   isSidechain,
-				Version:       version,
-				FirstPrompt:   firstPrompt,
-				TotalTokens:   totalTokens,
-				InputTokens:   inputTokens,
-				OutputTokens:  outputTokens,
-			LastMessage:     lastMessage,
-			LastMessageTime: lastMessageTime,
+				ID:              sessionID,
+				Title:           sessionID, // Use ID as title for project sessions
+				Updated:         info.ModTime().Format("2006-01-02 15:04"),
+				Path:            sessionPath,
+				Started:         startedStr,
+				Duration:        durationStr,
+				UserPrompts:     userPrompts,
+				Interruptions:   interruptions,
+				GitBranch:       gitBranch,
+				IsSidechain:     isSidechain,
+				Version:         version,
+				FirstPrompt:     firstPrompt,
+				TotalTokens:     totalTokens,
+				InputTokens:     inputTokens,
+				OutputTokens:    outputTokens,
+				LastMessage:     lastMessage,
+				LastMessageTime: lastMessageTime,
 			})
 		}
 

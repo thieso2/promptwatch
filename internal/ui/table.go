@@ -234,13 +234,13 @@ func createProjectsTableWithWidth(width int) table.Model {
 
 // ColumnWidths holds calculated widths for session table columns
 type ColumnWidths struct {
-	Version       int
-	GitBranch     int
-	LastMsgTime   int
-	Tokens        int
-	Started       int
-	Duration      int
-	LastMessage   int
+	Version     int
+	GitBranch   int
+	LastMsgTime int
+	Tokens      int
+	Started     int
+	Duration    int
+	LastMessage int
 }
 
 // CalculateSessionTableWidths calculates optimal column widths based on session data
