@@ -68,7 +68,7 @@ jobs:
           go build \
             -ldflags="-s -w -X main.Version=${{ github.ref_name }}" \
             -o ${{ matrix.artifact }} \
-            ./cmd/claudewatch
+            ./cmd/promptwatch
 
       - name: Create tarball
         run: |
